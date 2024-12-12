@@ -1,7 +1,10 @@
 package main
 
 import (
+	auth "consumer/handlers"
 	"log"
+	"net/http"
+	"text/template"
 
 	"github.com/streadway/amqp"
 )
@@ -48,21 +51,43 @@ func StartConsumer() {
 		log.Fatalf("Failed to register a consumer: %v", err)
 	}
 
-	forever := make(chan bool)
-
-	// Process messages in a goroutine
+	// Process messages
 	go func() {
 		for d := range msgs {
 			log.Printf("Received message: %s", d.Body)
 			// Add your processing logic here
 		}
 	}()
-
-	log.Println("Waiting for messages. To exit press CTRL+C")
-	<-forever
+	log.Println("Consumer is running and listening for messages")
 }
 
 func main() {
 	log.Println("Message Consumer Service started")
-	StartConsumer() // Start the consumer
+
+	// Start the RabbitMQ consumer in a goroutine
+	go StartConsumer()
+
+	// Load templates
+	templates := template.Must(template.ParseGlob("templates/*.html"))
+
+	// Define handlers
+	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			templates.ExecuteTemplate(w, "login.html", nil)
+		} else if r.Method == http.MethodPost {
+			auth.HandleLogin(w, r)
+		}
+	})
+
+	http.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			templates.ExecuteTemplate(w, "register.html", nil)
+		} else if r.Method == http.MethodPost {
+			auth.HandleRegister(w, r)
+		}
+	})
+
+	// Start the HTTP server
+	log.Println("Consumer service running on port 8085")
+	log.Fatal(http.ListenAndServe(":8085", nil))
 }

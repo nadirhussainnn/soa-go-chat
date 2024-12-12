@@ -5,8 +5,10 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 )
 
 func proxyHandler(targetURL string, stripPrefix string) http.HandlerFunc {
@@ -60,9 +62,20 @@ func proxyHandler(targetURL string, stripPrefix string) http.HandlerFunc {
 func main() {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/auth/{path:.*}", proxyHandler("http://127.0.0.1:8081", "/auth")).Methods("POST", "GET")
-	r.HandleFunc("/message/{path:.*}", proxyHandler("http://127.0.0.1:8082", "/message")).Methods("POST", "GET")
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 
-	log.Println("Gateway running on port 8080")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	PORT := os.Getenv("PORT")
+	AUTH_SERVICE_URL := os.Getenv("AUTH_SERVICE_URL")
+	MESSAGING_SERVICE_URL := os.Getenv("MESSAGING_SERVICE_URL")
+	// NOTIFICATION_SERVICE_URL := os.Getenv("NOTIFICATION_SERVICE_URL")
+	// FRONTEND_URL := os.Getenv("FRONTEND_URL")
+
+	r.HandleFunc("/auth/{path:.*}", proxyHandler(AUTH_SERVICE_URL, "/auth")).Methods("POST", "GET")
+	r.HandleFunc("/message/{path:.*}", proxyHandler(MESSAGING_SERVICE_URL, "/message")).Methods("POST", "GET")
+
+	log.Println("Gateway running on port", PORT)
+	log.Fatal(http.ListenAndServe(fmt.Sprint(":", PORT), r))
 }

@@ -45,3 +45,6 @@ Go html/templates
 **Architecture:** Service-Oriented Architecture (SOA) for modular, distributed services.
 
 **Protocols:** WebSockets for real-time communication and REST APIs for auxiliary service interactions.
+
+# Running the project
+CompileDaemon --build="sleep 1 && go build -o main" --command="./main"
