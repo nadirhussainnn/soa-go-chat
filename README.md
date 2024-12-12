@@ -35,8 +35,13 @@ Go html/templates
 
 # Tech Stack
 **Backend:** Go programming language for efficient and scalable service development.
+
 **Database:** SQLite with repository pattern for structured, abstracted data handling.
+
 **Frontend Templates:** Go templates for dynamic, server-rendered UI.
+
 **Message Broker:** RabbitMQ for asynchronous messaging and queue management.
+
 **Architecture:** Service-Oriented Architecture (SOA) for modular, distributed services.
+
 **Protocols:** WebSockets for real-time communication and REST APIs for auxiliary service interactions.
