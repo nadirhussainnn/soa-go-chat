@@ -1,61 +1,61 @@
 package main
 
 import (
-	"encoding/json"
+	"auth-service/handlers"
+	"auth-service/models"
+	"auth-service/repository"
+	"auth-service/utils"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"time"
 
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/joho/godotenv"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
-var PORT, JWT_SECRET string
+var PORT, DB_NAME string
 
-func generateJWT(username string) (string, error) {
-	fmt.Print("JWT_SECRET")
-	claims := jwt.MapClaims{
-		"username": username,
-		"exp":      time.Now().Add(time.Hour * 1).Unix(),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(JWT_SECRET)
-}
-
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-
-	var credentials map[string]string
-	if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
-		log.Printf("Invalid request payload: %v", err)
-
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
-		return
+func initDB() *gorm.DB {
+	db, err := gorm.Open(sqlite.Open(DB_NAME), &gorm.Config{})
+	if err != nil {
+		log.Fatalf("Failed to connect to the database: %v", err)
 	}
 
-	if credentials["username"] == "user" && credentials["password"] == "password" {
-		log.Println("Lovking....1", credentials["username"])
-		token, _ := generateJWT(credentials["username"])
-		log.Println("Lovking....token", token)
-		json.NewEncoder(w).Encode(map[string]string{"token": token})
-		log.Println("Lovking....3")
-	} else {
-		log.Println("Lovking....4")
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		log.Println("Lovking....5")
-	}
+	// Migrate the schema
+	db.AutoMigrate(&models.User{}, &models.Contact{}, &models.ContactRequest{})
+	return db
 }
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+
+	utils.LoadEnvs()
 
 	PORT = os.Getenv("PORT")
-	JWT_SECRET = os.Getenv("JWT_SECRET")
-	http.HandleFunc("/login", loginHandler)
-	log.Println("Auth service running on port", PORT, JWT_SECRET)
+	DB_NAME = os.Getenv("DB_NAME")
+
+	db := initDB()
+	userRepo := repository.NewUserRepository(db)
+	contactRepo := repository.NewContactRepository(db)
+
+	handler := &handlers.Handler{UserRepo: userRepo}
+	contactHandler := &handlers.ContactHandler{ContactRepo: contactRepo}
+
+	http.HandleFunc("/register", handler.RegisterHandler)
+	http.HandleFunc("/login", handler.LoginHandler)
+	http.HandleFunc("/forgot-password", handler.ForgotPasswordHandler)
+
+	http.HandleFunc("/contacts/available", contactHandler.FetchAvailableContacts)
+	http.HandleFunc("/contacts/my", contactHandler.FetchUserContacts)
+	http.HandleFunc("/contacts/search", contactHandler.SearchContacts)
+	http.HandleFunc("/contacts/request/{id}", contactHandler.SendContactRequest) // Use dynamic segment
+	http.HandleFunc("/contacts/remove/{id}", contactHandler.RemoveContact)       // Use dynamic segment
+
+	// // Example protected route
+	// http.Handle("/protected", middleware.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// 	w.Write([]byte("This is a protected route"))
+	// })))
+
+	log.Println("Auth service running on port", PORT)
 	log.Fatal(http.ListenAndServe(fmt.Sprint(":", PORT), nil))
 }

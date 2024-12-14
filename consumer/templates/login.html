@@ -3,18 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Login - ChatApp</title>
+    <link rel="stylesheet" href="/static/index.css">
 </head>
 <body>
-    <h1>Login</h1>
-    <form action="/login" method="POST">
-        <label for="username">Username:</label>
-        <input type="text" id="username" name="username" required>
-        <br>
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required>
-        <br>
-        <button type="submit">Login</button>
-    </form>
+    <div class="container">
+        <!-- Include Header -->
+        {{ template "header.html" }}
+
+        <!-- Login Form -->
+        <main>
+            <section class="form-section">
+                <h1>Login</h1>
+                <form action="/login" method="POST" class="login-form">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required>
+
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+
+                    <button type="submit" class="btn">Login</button>
+                </form>
+
+                <div class="additional-links">
+                    <a href="/register" class="btn small-btn">Register</a>
+                    <a href="/forgot-password" class="btn small-btn">Forgot Password?</a>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer>
+            <p>&copy; 2024 ChatApp. All rights reserved.</p>
+        </footer>
+    </div>
 </body>
 </html>

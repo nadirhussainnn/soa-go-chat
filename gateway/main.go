@@ -17,8 +17,6 @@ func proxyHandler(targetURL string, stripPrefix string) http.HandlerFunc {
 		forwardPath := r.URL.Path[len(stripPrefix):]
 		fullURL := targetURL + forwardPath
 
-		log.Printf("Forwarding request %s %s to %s", r.Method, r.URL.Path, fullURL)
-
 		// Create a new request with the same method, headers, and body
 		client := &http.Client{}
 		req, err := http.NewRequest(r.Method, fullURL, r.Body)
@@ -34,8 +32,6 @@ func proxyHandler(targetURL string, stripPrefix string) http.HandlerFunc {
 			}
 		}
 
-		// Forward the request and handle the response
-		fmt.Print(req)
 		resp, err := client.Do(req)
 		if err != nil {
 			log.Printf("Error forwarding request: %v", err)
@@ -47,7 +43,6 @@ func proxyHandler(targetURL string, stripPrefix string) http.HandlerFunc {
 		// Copy response headers and status code to the original response writer
 		for key, values := range resp.Header {
 			for _, value := range values {
-				log.Printf("Received Authorization header: %s", value)
 				w.Header().Add(key, value)
 			}
 		}

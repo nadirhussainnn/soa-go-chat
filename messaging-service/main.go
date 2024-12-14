@@ -2,20 +2,22 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/joho/godotenv"
 	"github.com/streadway/amqp"
 )
 
-var secretKey = []byte("my-secret-key")
+var JWT_SECRET []byte
+var PORT, AMQP_URL string
 
 // Validate JWT Token
 func validateJWT(tokenString string) (bool, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		return secretKey, nil
+		return JWT_SECRET, nil
 	})
 	if err != nil {
 		return false, err
@@ -25,12 +27,9 @@ func validateJWT(tokenString string) (bool, error) {
 
 // Handle message requests
 func messageHandler(w http.ResponseWriter, r *http.Request) {
-	// Log all headers for debugging
-	log.Printf("All received headers: %v", r.Header)
 
 	// Validate JWT token from Authorization header
 	token := r.Header.Get("Authorization")
-	fmt.Print("token", token)
 	if token == "" {
 		log.Println("Authorization header is missing")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -45,8 +44,6 @@ func messageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-
-	log.Printf("Extracted token: %s", token)
 
 	// Validate the token
 	if valid, err := validateJWT(token); !valid {
@@ -64,7 +61,7 @@ func messageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Publish message to RabbitMQ
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	conn, err := amqp.Dial()
 	if err != nil {
 		log.Printf("Failed to connect to RabbitMQ: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -99,10 +96,19 @@ func messageHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Message sent: %s", message["content"])
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintln(w, "Message sent")
 }
 
 func main() {
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	PORT = os.Getenv("PORT")
+	AMQP_URL = os.Getenv("AMQP_URL")
+	JWT_SECRET = []byte(os.Getenv("JWT_SECRET"))
+
 	http.HandleFunc("/send-message", messageHandler)
 	log.Println("Messaging service running on port 8082")
 	log.Fatal(http.ListenAndServe(":8082", nil))
