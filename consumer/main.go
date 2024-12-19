@@ -127,6 +127,14 @@ func main() {
 		}
 	})
 
+	http.HandleFunc("/contacts", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			tmpl.ExecuteTemplate(w, "contacts.html", nil)
+		} else {
+			auth.HandleForgotPassword(w, r)
+		}
+	})
+
 	// Start the HTTP server
 	log.Println("Consumer service running on port", PORT)
 	log.Fatal(http.ListenAndServe(":"+PORT, nil))

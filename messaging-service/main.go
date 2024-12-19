@@ -61,7 +61,7 @@ func messageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Publish message to RabbitMQ
-	conn, err := amqp.Dial()
+	conn, err := amqp.Dial(AMQP_URL)
 	if err != nil {
 		log.Printf("Failed to connect to RabbitMQ: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)

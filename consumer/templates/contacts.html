@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contacts - ChatApp</title>
+    <link rel="stylesheet" href="/static/contacts.css">
+</head>
+<body>
+    <div class="contacts-container">
+        <!-- Header -->
+        <header_logout >
+            <h1>Manage Contacts</h1>
+            <form id="search-form" method="POST">
+                <input type="text" id="search-input" placeholder="Search for a contact" required>
+                <button type="submit">Search</button>
+            </form>
+        </header_logout>
+
+        <!-- Available Contacts Section -->
+        <section class="available-contacts">
+            <h2>Available Contacts</h2>
+            <ul id="available-contacts-list">
+                <!-- Contacts will be dynamically loaded here -->
+            </ul>
+        </section>
+
+        <!-- My Contacts Section -->
+        <section class="my-contacts">
+            <h2>My Contacts</h2>
+            <ul id="my-contacts-list">
+                <!-- Contacts will be dynamically loaded here -->
+            </ul>
+        </section>
+    </div>
+
+    <script>
+        const searchForm = document.getElementById('search-form');
+        const searchInput = document.getElementById('search-input');
+        const availableContactsList = document.getElementById('available-contacts-list');
+        const myContactsList = document.getElementById('my-contacts-list');
+
+        // Fetch and render available contacts
+        async function fetchAvailableContacts() {
+            const response = await fetch('/contacts/available');
+            const contacts = await response.json();
+            availableContactsList.innerHTML = '';
+            contacts.forEach(contact => {
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `
+                    <span>${contact.username}</span>
+                    <button onclick="sendRequest('${contact.id}')">Send Request</button>
+                `;
+                availableContactsList.appendChild(listItem);
+            });
+        }
+
+        // Fetch and render my contacts
+        async function fetchMyContacts() {
+            const response = await fetch('/contacts/my');
+            const contacts = await response.json();
+            myContactsList.innerHTML = '';
+            contacts.forEach(contact => {
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `
+                    <span>${contact.username}</span>
+                    <button onclick="removeContact('${contact.id}')">Remove</button>
+                `;
+                myContactsList.appendChild(listItem);
+            });
+        }
+
+        // Search for contacts
+        searchForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const query = searchInput.value.trim();
+            if (query) {
+                const response = await fetch(`/contacts/search?q=${query}`);
+                const contacts = await response.json();
+                availableContactsList.innerHTML = '';
+                contacts.forEach(contact => {
+                    const listItem = document.createElement('li');
+                    listItem.innerHTML = `
+                        <span>${contact.username}</span>
+                        <button onclick="sendRequest('${contact.id}')">Send Request</button>
+                    `;
+                    availableContactsList.appendChild(listItem);
+                });
+            }
+        });
+
+        // Send contact request
+        async function sendRequest(contactId) {
+            await fetch(`/contacts/request/${contactId}`, { method: 'POST' });
+            alert('Request sent');
+            fetchAvailableContacts();
+        }
+
+        // Remove contact
+        async function removeContact(contactId) {
+            await fetch(`/contacts/remove/${contactId}`, { method: 'DELETE' });
+            alert('Contact removed');
+            fetchMyContacts();
+        }
+
+        // Initial load
+        fetchAvailableContacts();
+        fetchMyContacts();
+    </script>
+</body>
+</html>
