@@ -8,6 +8,8 @@ import (
 	"os"
 	"text/template"
 
+	middleware "consumer/middlewares"
+
 	"github.com/streadway/amqp"
 )
 
@@ -77,24 +79,19 @@ func main() {
 	}
 	defer ch.Close()
 
-	// Start the RabbitMQ consumer in a goroutine
 	go StartConsumer()
 
-	// Load templates
 	templates := template.Must(template.ParseGlob("templates/*.html"))
 
-	// Serve static files (CSS, JS, images, etc.)
 	fs := http.FileServer(http.Dir("./static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
 	tmpl := template.Must(template.ParseGlob("./templates/*.html"))
 
-	// Serve the homepage
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		tmpl.ExecuteTemplate(w, "index.html", nil)
 	})
 
-	// Define HTTP handlers
 	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			templates.ExecuteTemplate(w, "login.html", nil)
@@ -111,14 +108,6 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("/terms", func(w http.ResponseWriter, r *http.Request) {
-		tmpl.ExecuteTemplate(w, "terms.html", nil)
-	})
-
-	http.HandleFunc("/chat", func(w http.ResponseWriter, r *http.Request) {
-		tmpl.ExecuteTemplate(w, "chat.html", nil)
-	})
-
 	http.HandleFunc("/forgot-password", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			tmpl.ExecuteTemplate(w, "forgot_password.html", nil)
@@ -127,13 +116,17 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("/contacts", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			tmpl.ExecuteTemplate(w, "contacts.html", nil)
-		} else {
-			auth.HandleForgotPassword(w, r)
-		}
+	http.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
+		auth.HandleLogout(w, r)
 	})
+
+	http.HandleFunc("/terms", func(w http.ResponseWriter, r *http.Request) {
+		tmpl.ExecuteTemplate(w, "terms.html", nil)
+	})
+
+	http.Handle("/dashboard", middleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tmpl.ExecuteTemplate(w, "dashboard.html", nil)
+	})))
 
 	// Start the HTTP server
 	log.Println("Consumer service running on port", PORT)

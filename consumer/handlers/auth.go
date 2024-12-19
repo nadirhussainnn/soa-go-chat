@@ -27,7 +27,12 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		http.Redirect(w, r, "/contacts", http.StatusSeeOther)
+		// Forward the Set-Cookie header from auth-service to the browser
+		for _, cookie := range resp.Cookies() {
+			http.SetCookie(w, cookie)
+		}
+
+		http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 	} else {
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 	}
@@ -51,10 +56,33 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
+	if resp.StatusCode == http.StatusCreated {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 	} else {
 		http.Error(w, "Registration failed", http.StatusBadRequest)
+	}
+}
+
+// HandleLogin processes login requests
+func HandleLogout(w http.ResponseWriter, r *http.Request) {
+	username := r.FormValue("username")
+	GATEWAY_URL := os.Getenv("GATEWAY_URL")
+	// Send data to Authentication Service
+	payload := map[string]string{"username": username}
+	jsonPayload, _ := json.Marshal(payload)
+
+	resp, err := http.Post(GATEWAY_URL+"/auth/logout", "application/json", bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		log.Printf("Error communicating with Authentication Service: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	} else {
+		http.Error(w, "Failed to logout", http.StatusUnauthorized)
 	}
 }
 

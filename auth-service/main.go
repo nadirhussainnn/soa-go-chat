@@ -23,7 +23,7 @@ func initDB() *gorm.DB {
 	}
 
 	// Migrate the schema
-	db.AutoMigrate(&models.User{}, &models.Contact{}, &models.ContactRequest{})
+	db.AutoMigrate(&models.User{}, &models.Session{})
 	return db
 }
 
@@ -36,20 +36,14 @@ func main() {
 
 	db := initDB()
 	userRepo := repository.NewUserRepository(db)
-	contactRepo := repository.NewContactRepository(db)
+	sessionRepo := repository.NewSessionRepository(db)
 
-	handler := &handlers.Handler{UserRepo: userRepo}
-	contactHandler := &handlers.ContactHandler{ContactRepo: contactRepo}
+	handler := &handlers.Handler{UserRepo: userRepo, SessionRepo: sessionRepo}
 
 	http.HandleFunc("/register", handler.RegisterHandler)
 	http.HandleFunc("/login", handler.LoginHandler)
 	http.HandleFunc("/forgot-password", handler.ForgotPasswordHandler)
-
-	http.HandleFunc("/contacts/available", contactHandler.FetchAvailableContacts)
-	http.HandleFunc("/contacts/my", contactHandler.FetchUserContacts)
-	http.HandleFunc("/contacts/search", contactHandler.SearchContacts)
-	http.HandleFunc("/contacts/request/{id}", contactHandler.SendContactRequest) // Use dynamic segment
-	http.HandleFunc("/contacts/remove/{id}", contactHandler.RemoveContact)       // Use dynamic segment
+	http.HandleFunc("/logout", handler.LogoutHandler)
 
 	// // Example protected route
 	// http.Handle("/protected", middleware.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
