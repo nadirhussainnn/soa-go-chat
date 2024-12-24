@@ -1,72 +1,48 @@
 package repository
 
 import (
-	"auth-service/models"
-	"time"
+	"contacts-service/models"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-type ContactRepository struct {
+type ContactsRepository interface {
+	AcceptOrReject(contact *models.Contact) error
+	AddContactRequest(req *models.ContactRequest) error
+	GetContactsByUserID(userID uuid.UUID) ([]models.Contact, error)
+	UpdateContactRequest(req *models.ContactRequest) error
+	GetContactRequestByID(requestID uuid.UUID) (*models.ContactRequest, error)
+}
+
+type contactsRepository struct {
 	db *gorm.DB
 }
 
-func NewContactRepository(db *gorm.DB) *ContactRepository {
-	return &ContactRepository{db: db}
+func NewContactsRepository(db *gorm.DB) ContactsRepository {
+	return &contactsRepository{db: db}
 }
 
-// Fetch all available users (excluding current user's contacts)
-func (repo *ContactRepository) GetAvailableUsers(userID uint) ([]models.User, error) {
-
-	var users []models.User
-	err := repo.db.Raw(`
-		SELECT * FROM users WHERE id NOT IN 
-		(SELECT contact_id FROM contacts WHERE user_id = ?) AND id != ?
-	`, userID, userID).Scan(&users).Error
-	return users, err
+func (r *contactsRepository) AcceptOrReject(contact *models.Contact) error {
+	return r.db.Create(contact).Error
 }
 
-// Fetch current user's contacts
-func (repo *ContactRepository) GetUserContacts(userID uint) ([]models.User, error) {
-	var contacts []models.User
-	err := repo.db.Raw(`
-		SELECT * FROM users WHERE id IN 
-		(SELECT contact_id FROM contacts WHERE user_id = ?)
-	`, userID).Scan(&contacts).Error
+func (r *contactsRepository) AddContactRequest(req *models.ContactRequest) error {
+	return r.db.Create(req).Error
+}
+
+func (r *contactsRepository) GetContactsByUserID(userID uuid.UUID) ([]models.Contact, error) {
+	var contacts []models.Contact
+	err := r.db.Where("user_id = ?", userID).Find(&contacts).Error
 	return contacts, err
 }
 
-// Search for users by username
-func (repo *ContactRepository) SearchUsers(query string, userID uint) ([]models.User, error) {
-	var users []models.User
-	err := repo.db.Raw(`
-		SELECT * FROM users WHERE username LIKE ? AND id NOT IN 
-		(SELECT contact_id FROM contacts WHERE user_id = ?) AND id != ?
-	`, "%"+query+"%", userID, userID).Scan(&users).Error
-	return users, err
+func (r *contactsRepository) UpdateContactRequest(req *models.ContactRequest) error {
+	return r.db.Model(&models.ContactRequest{}).Where("id = ?", req.ID).Updates(req).Error
 }
 
-// Send a contact request
-func (repo *ContactRepository) SendContactRequest(senderID, receiverID uint) error {
-	request := models.ContactRequest{
-		SenderID:    senderID,
-		ReceiverID:  receiverID,
-		RequestTime: time.Now().Unix(),
-	}
-	return repo.db.Create(&request).Error
-}
-
-// Remove a contact
-func (repo *ContactRepository) RemoveContact(userID, contactID uint) error {
-	return repo.db.Where("user_id = ? AND contact_id = ?", userID, contactID).Delete(&models.Contact{}).Error
-}
-
-func (repo *ContactRepository) GetPendingRequests(userID uint) ([]models.ContactRequest, error) {
-	var requests []models.ContactRequest
-	err := repo.db.Where("receiver_id = ? AND status = ?", userID, "pending").Find(&requests).Error
-	return requests, err
-}
-
-func (repo *ContactRepository) UpdateRequestStatus(requestID uint, status string) error {
-	return repo.db.Model(&models.ContactRequest{}).Where("id = ?", requestID).Update("status", status).Error
+func (r *contactsRepository) GetContactRequestByID(requestID uuid.UUID) (*models.ContactRequest, error) {
+	var request models.ContactRequest
+	err := r.db.Where("id = ?", requestID).First(&request).Error
+	return &request, err
 }

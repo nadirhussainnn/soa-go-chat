@@ -1,105 +1,106 @@
 package handlers
 
 import (
-	"auth-service/repository"
+	"contacts-service/models"
+	"contacts-service/repository"
 	"encoding/json"
+	"io"
+	"log"
 	"net/http"
-	"strconv"
 
-	"github.com/gorilla/mux"
+	"github.com/google/uuid"
 )
 
-type ContactHandler struct {
-	ContactRepo *repository.ContactRepository
+type ContactsHandler struct {
+	Repo repository.ContactsRepository
 }
 
-func (h *ContactHandler) FetchAvailableContacts(w http.ResponseWriter, r *http.Request) {
-	userID := 1 // Simulate logged-in user ID
-	contacts, err := h.ContactRepo.GetAvailableUsers(uint(userID))
+func (h *ContactsHandler) AcceptOrReject(w http.ResponseWriter, r *http.Request) {
+	var rawData struct {
+		UserID    string `json:"user_id"`
+		ContactID string `json:"contact_id"`
+	}
+
+	// Read and log the request body
+	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "Failed to fetch contacts", http.StatusInternalServerError)
+		http.Error(w, "Failed to read request body", http.StatusInternalServerError)
 		return
 	}
-	json.NewEncoder(w).Encode(contacts)
-}
+	log.Printf("Raw Request Body: %s", string(bodyBytes))
 
-func (h *ContactHandler) FetchUserContacts(w http.ResponseWriter, r *http.Request) {
-	userID := 1 // Simulate logged-in user ID
-	contacts, err := h.ContactRepo.GetUserContacts(uint(userID))
-	if err != nil {
-		http.Error(w, "Failed to fetch user contacts", http.StatusInternalServerError)
-		return
-	}
-	json.NewEncoder(w).Encode(contacts)
-}
-
-func (h *ContactHandler) SearchContacts(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
-	userID := 1 // Simulate logged-in user ID
-	contacts, err := h.ContactRepo.SearchUsers(query, uint(userID))
-	if err != nil {
-		http.Error(w, "Failed to search contacts", http.StatusInternalServerError)
-		return
-	}
-	json.NewEncoder(w).Encode(contacts)
-}
-
-func (h *ContactHandler) SendContactRequest(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	receiverID, _ := strconv.Atoi(params["id"])
-	senderID := 1 // Simulate logged-in user ID
-	err := h.ContactRepo.SendContactRequest(uint(senderID), uint(receiverID))
-	if err != nil {
-		http.Error(w, "Failed to send contact request", http.StatusInternalServerError)
-		return
-	}
-	w.Write([]byte("Request sent"))
-}
-
-func (h *ContactHandler) RemoveContact(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	contactID, _ := strconv.Atoi(params["id"])
-	userID := 1 // Simulate logged-in user ID
-	err := h.ContactRepo.RemoveContact(uint(userID), uint(contactID))
-	if err != nil {
-		http.Error(w, "Failed to remove contact", http.StatusInternalServerError)
-		return
-	}
-	w.Write([]byte("Contact removed"))
-}
-
-func (h *ContactHandler) FetchPendingRequests(w http.ResponseWriter, r *http.Request) {
-	userID := 1 // Simulated logged-in user ID
-	requests, err := h.ContactRepo.GetPendingRequests(uint(userID))
-	if err != nil {
-		http.Error(w, "Failed to fetch pending requests", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(requests)
-}
-
-func (h *ContactHandler) HandleRequestAction(w http.ResponseWriter, r *http.Request) {
-	var action struct {
-		RequestID uint   `json:"request_id"`
-		Status    string `json:"status"` // "accepted" or "rejected"
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&action); err != nil {
+	// Decode the body into a temporary struct
+	if err := json.Unmarshal(bodyBytes, &rawData); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
-	if action.Status != "accepted" && action.Status != "rejected" {
-		http.Error(w, "Invalid status value", http.StatusBadRequest)
+	// Parse UUIDs from the raw data
+	userID, err := uuid.Parse(rawData.UserID)
+	if err != nil {
+		http.Error(w, "Invalid user_id format", http.StatusBadRequest)
+		return
+	}
+	contactID, err := uuid.Parse(rawData.ContactID)
+	if err != nil {
+		http.Error(w, "Invalid contact_id format", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.ContactRepo.UpdateRequestStatus(action.RequestID, action.Status); err != nil {
-		http.Error(w, "Failed to update request", http.StatusInternalServerError)
+	contact := models.Contact{
+		ID:        uuid.New(),
+		UserID:    userID,
+		ContactID: contactID,
+	}
+
+	log.Printf("Decoded Contact: %+v", contact)
+
+	// Save the contact to the repository
+	if err := h.Repo.AcceptOrReject(&contact); err != nil {
+		http.Error(w, "Failed to add contact", http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with the created contact
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(contact)
+
+}
+
+func (h *ContactsHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
+
+	log.Println("Getting contacts", r.URL)
+	query := r.URL.Query().Get("user_id") // Get the search query from the request
+
+	if query == "" {
+		http.Error(w, "Search query is required", http.StatusBadRequest)
+		return
+	}
+
+	contacts, err := h.Repo.GetContactsByUserID(uuid.MustParse(query))
+	if err != nil {
+		http.Error(w, "Failed to search Users", http.StatusInternalServerError)
+		return
+	}
+
+	// Send the matching contacts as JSON
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(contacts)
+}
+
+// HandleContactRequest processes contact requests (accept/reject)
+func (h *ContactsHandler) SendContactRequest(w http.ResponseWriter, r *http.Request) {
+	var req models.ContactRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.Repo.AddContactRequest(&req); err != nil {
+		http.Error(w, "Failed to process contact request", http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Request updated successfully"))
+	w.Write([]byte("Contact request updated successfully"))
 }

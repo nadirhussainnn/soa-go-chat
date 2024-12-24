@@ -1,6 +1,7 @@
 package main
 
 import (
+	"auth-service/amqp"
 	"auth-service/handlers"
 	"auth-service/models"
 	"auth-service/repository"
@@ -33,10 +34,19 @@ func main() {
 
 	PORT = os.Getenv("PORT")
 	DB_NAME = os.Getenv("DB_NAME")
+	AMQP_URL := os.Getenv("AMQP_URL")
 
 	db := initDB()
 	userRepo := repository.NewUserRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
+
+	// Set up RabbitMQ
+	conn, ch := amqp.InitRabbitMQ(AMQP_URL)
+	defer conn.Close()
+	defer ch.Close()
+
+	sessionVerifier := amqp.SessionVerifier{SessionRepo: sessionRepo}
+	sessionVerifier.ListenForSessionVerification(ch)
 
 	handler := &handlers.Handler{UserRepo: userRepo, SessionRepo: sessionRepo}
 
@@ -44,6 +54,8 @@ func main() {
 	http.HandleFunc("/login", handler.LoginHandler)
 	http.HandleFunc("/forgot-password", handler.ForgotPasswordHandler)
 	http.HandleFunc("/logout", handler.LogoutHandler)
+	// http.Handle("/search", authMiddleware.RequireAuth(http.HandlerFunc(handler.SearchContacts)))
+	http.HandleFunc("/search", handler.SearchContacts)
 
 	// // Example protected route
 	// http.Handle("/protected", middleware.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

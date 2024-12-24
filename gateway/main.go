@@ -13,9 +13,16 @@ import (
 
 func proxyHandler(targetURL string, stripPrefix string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Strip prefix and construct target URL
+
+		log.Printf("Proxying request: %s %s", r.Method, r.URL.String())
+
+		// Strip prefix and construct target URL including query parameters
 		forwardPath := r.URL.Path[len(stripPrefix):]
 		fullURL := targetURL + forwardPath
+		if r.URL.RawQuery != "" {
+			fullURL += "?" + r.URL.RawQuery
+		}
+		log.Printf("Forwarding to: %s", fullURL)
 
 		// Create a new request with the same method, headers, and body
 		client := &http.Client{}
@@ -25,13 +32,15 @@ func proxyHandler(targetURL string, stripPrefix string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		// Copy headers from original request to new request
+
+		// Copy headers from the original request to the new request
 		for key, values := range r.Header {
 			for _, value := range values {
 				req.Header.Add(key, value)
 			}
 		}
 
+		// Forward the request
 		resp, err := client.Do(req)
 		if err != nil {
 			log.Printf("Error forwarding request: %v", err)
@@ -65,10 +74,11 @@ func main() {
 	PORT := os.Getenv("PORT")
 	AUTH_SERVICE_URL := os.Getenv("AUTH_SERVICE_URL")
 	MESSAGING_SERVICE_URL := os.Getenv("MESSAGING_SERVICE_URL")
-	// NOTIFICATION_SERVICE_URL := os.Getenv("NOTIFICATION_SERVICE_URL")
-	// FRONTEND_URL := os.Getenv("FRONTEND_URL")
+	CONTACTS_SERVICE_URL := os.Getenv("CONTACTS_SERVICE_URL")
 
 	r.HandleFunc("/auth/{path:.*}", proxyHandler(AUTH_SERVICE_URL, "/auth")).Methods("POST", "GET")
+	r.HandleFunc("/contacts/{path:.*}", proxyHandler(CONTACTS_SERVICE_URL, "/contacts")).Methods("POST", "GET", "DELETE")
+
 	r.HandleFunc("/message/{path:.*}", proxyHandler(MESSAGING_SERVICE_URL, "/message")).Methods("POST", "GET")
 
 	log.Println("Gateway running on port", PORT)

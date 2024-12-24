@@ -4,6 +4,7 @@ import (
 	"auth-service/models"
 	"auth-service/repository"
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 
@@ -68,18 +69,18 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set the session cookie
-	http.SetCookie(w, &http.Cookie{
+	new_cookie := &http.Cookie{
 		Name:     "session_token",
 		Value:    tokenString,
 		HttpOnly: true,
 		Path:     "/",
-	})
-
+	}
+	http.SetCookie(w, new_cookie)
+	log.Print("Http Cookie", new_cookie)
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Login successful"))
 
-	// w.Header().Set("Content-Type", "application/json")
-	// json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"session_id": session.ID.String(), "user_id": session.UserID.String()})
 }
 
 func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -126,7 +127,7 @@ func (h *Handler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Save the user
 	if err := h.UserRepo.CreateUser(&user); err != nil {
-		http.Error(w, "Failed to create user", http.StatusInternalServerError)
+		http.Error(w, "User already exists", http.StatusConflict)
 		return
 	}
 
@@ -169,4 +170,24 @@ func (h *Handler) ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) 
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Password updated successfully"))
+}
+
+func (h *Handler) SearchContacts(w http.ResponseWriter, r *http.Request) {
+
+	query := r.URL.Query().Get("q") // Get the search query from the request
+
+	if query == "" {
+		http.Error(w, "Search query is required", http.StatusBadRequest)
+		return
+	}
+
+	contacts, err := h.UserRepo.SearchUser(query)
+	if err != nil {
+		http.Error(w, "Failed to search Users", http.StatusInternalServerError)
+		return
+	}
+
+	// Send the matching contacts as JSON
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(contacts)
 }

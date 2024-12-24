@@ -1,11 +1,12 @@
 package main
 
 import (
-	"auth-service/handlers"
-	"auth-service/models"
-	"auth-service/repository"
-	"auth-service/utils"
-	"fmt"
+	"contacts-service/amqp"
+	"contacts-service/handlers"
+	"contacts-service/middleware"
+	"contacts-service/models"
+	"contacts-service/repository"
+	"contacts-service/utils"
 	"log"
 	"net/http"
 	"os"
@@ -14,40 +15,46 @@ import (
 	"gorm.io/gorm"
 )
 
-var PORT, DB_NAME string
-
 func initDB() *gorm.DB {
-	db, err := gorm.Open(sqlite.Open(DB_NAME), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(os.Getenv("DB_NAME")), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
 	}
 
 	// Migrate the schema
-	db.AutoMigrate(&models.User{})
+	db.AutoMigrate(&models.Contact{}, &models.ContactRequest{})
 	return db
 }
 
 func main() {
-
+	// Load environment variables
 	utils.LoadEnvs()
-
-	PORT = os.Getenv("PORT")
-	DB_NAME = os.Getenv("DB_NAME")
+	PORT := os.Getenv("PORT")
+	AMQP_URL := os.Getenv("AMQP_URL")
 
 	db := initDB()
-	userRepo := repository.NewUserRepository(db)
+	repo := repository.NewContactsRepository(db)
+	handler := &handlers.ContactsHandler{Repo: repo}
 
-	handler := &handlers.Handler{UserRepo: userRepo}
+	// Set up RabbitMQ
+	conn, ch := amqp.InitRabbitMQ(AMQP_URL)
+	defer conn.Close()
+	defer ch.Close()
 
-	http.HandleFunc("/register", handler.RegisterHandler)
-	http.HandleFunc("/login", handler.LoginHandler)
-	http.HandleFunc("/forgot-password", handler.ForgotPasswordHandler)
+	// Initialize WebSocket handler
+	webSocketHandler := utils.NewWebSocketHandler()
 
-	// // Example protected route
-	// http.Handle("/protected", middleware.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	// 	w.Write([]byte("This is a protected route"))
-	// })))
+	// Use the RabbitMQ channel in middleware for session validation
+	authMiddleware := &middleware.AuthMiddleware{
+		AMQPChannel: ch, // Correctly pass the RabbitMQ channel
+	}
 
-	log.Println("Auth service running on port", PORT)
-	log.Fatal(http.ListenAndServe(fmt.Sprint(":", PORT), nil))
+	http.HandleFunc("/ws", webSocketHandler.HandleWebSocket)
+
+	http.Handle("/", authMiddleware.RequireAuth(http.HandlerFunc(handler.GetContacts)))
+	http.Handle("/send-request", authMiddleware.RequireAuth(http.HandlerFunc(handler.SendContactRequest)))
+	http.Handle("/accept-reject", authMiddleware.RequireAuth(http.HandlerFunc(handler.AcceptOrReject)))
+
+	log.Println("Contacts service running on port", PORT)
+	log.Fatal(http.ListenAndServe(":"+PORT, nil))
 }
