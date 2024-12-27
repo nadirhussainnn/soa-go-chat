@@ -27,7 +27,12 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		http.Redirect(w, r, "/contacts", http.StatusSeeOther)
+		// Forward the Set-Cookie header from auth-service to the browser
+		for _, cookie := range resp.Cookies() {
+			http.SetCookie(w, cookie)
+		}
+
+		http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 	} else {
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 	}
@@ -51,10 +56,52 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
+	if resp.StatusCode == http.StatusCreated {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 	} else {
 		http.Error(w, "Registration failed", http.StatusBadRequest)
+	}
+}
+
+// HandleLogin processes login requests
+func HandleLogout(w http.ResponseWriter, r *http.Request) {
+	GATEWAY_URL := os.Getenv("GATEWAY_URL")
+
+	// Forward the session cookie to the auth-service
+	client := &http.Client{}
+	req, _ := http.NewRequest("POST", GATEWAY_URL+"/auth/logout", nil)
+
+	// Include the session token from the cookie in the request
+	cookie, err := r.Cookie("session_token")
+	if err != nil {
+		http.Error(w, "Session not found", http.StatusUnauthorized)
+		return
+	}
+	req.AddCookie(cookie)
+
+	// Send request to auth-service
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("Error communicating with Authentication Service: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Handle the response
+	if resp.StatusCode == http.StatusOK {
+		// Clear the session cookie
+		http.SetCookie(w, &http.Cookie{
+			Name:  "session_token",
+			Value: "",
+			// HttpOnly: true,
+			Path:   "/",
+			MaxAge: -1, // Expire immediately
+		})
+
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	} else {
+		http.Error(w, "Failed to logout", http.StatusUnauthorized)
 	}
 }
 
