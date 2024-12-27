@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -47,10 +48,14 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate JWT
+	session_id := uuid.New()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username": user.Username,
-		"email":    user.Email,
+		"id":         user.ID,
+		"username":   user.Username,
+		"email":      user.Email,
+		"session_id": session_id,
 	})
+
 	tokenString, err := token.SignedString(JWT_SECRET)
 	if err != nil {
 		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
@@ -59,7 +64,7 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Create a session
 	session := &models.Session{
-		ID:     uuid.New(),
+		ID:     session_id,
 		UserID: user.ID,
 		Token:  tokenString,
 	}
@@ -70,14 +75,16 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Set the session cookie
 	new_cookie := &http.Cookie{
-		Name:     "session_token",
-		Value:    tokenString,
-		HttpOnly: true,
-		Path:     "/",
+		Name:    "session_token",
+		Value:   tokenString,
+		Expires: time.Now().Add(20 * time.Minute),
+		// HttpOnly: true,
+		Path: "/",
 	}
 	http.SetCookie(w, new_cookie)
 	log.Print("Http Cookie", new_cookie)
 	w.WriteHeader(http.StatusOK)
+	log.Print("Token", tokenString)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"session_id": session.ID.String(), "user_id": session.UserID.String()})
@@ -98,11 +105,10 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Clear the cookie
 	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token",
-		Value:    "",
-		HttpOnly: true,
-		Path:     "/",
-		MaxAge:   -1, // Expire immediately
+		Name:   "session_token",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1, // Expire immediately
 	})
 
 	w.WriteHeader(http.StatusOK)

@@ -23,12 +23,12 @@ var (
 func StartConsumer() {
 	// Declare the queue
 	q, err := ch.QueueDeclare(
-		"messages", // Queue name
-		false,      // Durable
-		false,      // Delete when unused
-		false,      // Exclusive
-		false,      // No-wait
-		nil,        // Arguments
+		utils.MESSAGES, // Queue name
+		false,          // Durable
+		false,          // Delete when unused
+		false,          // Exclusive
+		false,          // No-wait
+		nil,            // Arguments
 	)
 	if err != nil {
 		log.Fatalf("Failed to declare a queue: %v", err)

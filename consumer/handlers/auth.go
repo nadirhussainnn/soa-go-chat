@@ -92,11 +92,11 @@ func HandleLogout(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode == http.StatusOK {
 		// Clear the session cookie
 		http.SetCookie(w, &http.Cookie{
-			Name:     "session_token",
-			Value:    "",
-			HttpOnly: true,
-			Path:     "/",
-			MaxAge:   -1, // Expire immediately
+			Name:  "session_token",
+			Value: "",
+			// HttpOnly: true,
+			Path:   "/",
+			MaxAge: -1, // Expire immediately
 		})
 
 		http.Redirect(w, r, "/", http.StatusSeeOther)

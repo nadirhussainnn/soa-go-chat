@@ -1,70 +1,20 @@
 package handlers
 
 import (
-	"contacts-service/models"
 	"contacts-service/repository"
+	"contacts-service/utils"
 	"encoding/json"
-	"io"
 	"log"
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/streadway/amqp"
 )
 
 type ContactsHandler struct {
-	Repo repository.ContactsRepository
-}
-
-func (h *ContactsHandler) AcceptOrReject(w http.ResponseWriter, r *http.Request) {
-	var rawData struct {
-		UserID    string `json:"user_id"`
-		ContactID string `json:"contact_id"`
-	}
-
-	// Read and log the request body
-	bodyBytes, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Failed to read request body", http.StatusInternalServerError)
-		return
-	}
-	log.Printf("Raw Request Body: %s", string(bodyBytes))
-
-	// Decode the body into a temporary struct
-	if err := json.Unmarshal(bodyBytes, &rawData); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
-		return
-	}
-
-	// Parse UUIDs from the raw data
-	userID, err := uuid.Parse(rawData.UserID)
-	if err != nil {
-		http.Error(w, "Invalid user_id format", http.StatusBadRequest)
-		return
-	}
-	contactID, err := uuid.Parse(rawData.ContactID)
-	if err != nil {
-		http.Error(w, "Invalid contact_id format", http.StatusBadRequest)
-		return
-	}
-
-	contact := models.Contact{
-		ID:        uuid.New(),
-		UserID:    userID,
-		ContactID: contactID,
-	}
-
-	log.Printf("Decoded Contact: %+v", contact)
-
-	// Save the contact to the repository
-	if err := h.Repo.AcceptOrReject(&contact); err != nil {
-		http.Error(w, "Failed to add contact", http.StatusInternalServerError)
-		return
-	}
-
-	// Respond with the created contact
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(contact)
-
+	Repo             repository.ContactsRepository
+	WebSocketHandler *utils.WebSocketHandler // Add WebSocketHandler
+	AMQPChannel      *amqp.Channel           // Add AMQPChannel
 }
 
 func (h *ContactsHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
@@ -86,21 +36,4 @@ func (h *ContactsHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
 	// Send the matching contacts as JSON
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(contacts)
-}
-
-// HandleContactRequest processes contact requests (accept/reject)
-func (h *ContactsHandler) SendContactRequest(w http.ResponseWriter, r *http.Request) {
-	var req models.ContactRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
-		return
-	}
-
-	if err := h.Repo.AddContactRequest(&req); err != nil {
-		http.Error(w, "Failed to process contact request", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Contact request updated successfully"))
 }

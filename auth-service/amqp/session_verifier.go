@@ -2,6 +2,7 @@ package amqp
 
 import (
 	"auth-service/repository"
+	"auth-service/utils"
 	"encoding/json"
 	"log"
 
@@ -23,12 +24,12 @@ type SessionVerificationResponse struct {
 
 func (sv *SessionVerifier) ListenForSessionVerification(ch *amqp.Channel) {
 	q, err := ch.QueueDeclare(
-		"auth-session-verification", // Name of the request queue
-		false,                       // Durable
-		false,                       // Delete when unused
-		false,                       // Exclusive
-		false,                       // No-wait
-		nil,                         // Arguments
+		utils.AUTH_SESSION_VERIFICATION, // Name of the request queue
+		false,                           // Durable
+		false,                           // Delete when unused
+		false,                           // Exclusive
+		false,                           // No-wait
+		nil,                             // Arguments
 	)
 	if err != nil {
 		log.Fatalf("Failed to declare queue: %v", err)
@@ -36,12 +37,12 @@ func (sv *SessionVerifier) ListenForSessionVerification(ch *amqp.Channel) {
 
 	// Declare the response queue
 	_, err = ch.QueueDeclare(
-		"auth-session-response", // Name of the response queue
-		false,                   // Durable
-		false,                   // Delete when unused
-		false,                   // Exclusive
-		false,                   // No-wait
-		nil,                     // Arguments
+		utils.AUTH_SESSION_RESPONSE, // Name of the response queue
+		false,                       // Durable
+		false,                       // Delete when unused
+		false,                       // Exclusive
+		false,                       // No-wait
+		nil,                         // Arguments
 	)
 	if err != nil {
 		log.Fatalf("Failed to declare auth-session-response queue: %v", err)

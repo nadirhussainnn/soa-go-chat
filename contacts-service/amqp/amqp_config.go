@@ -1,6 +1,7 @@
 package amqp
 
 import (
+	"contacts-service/utils"
 	"log"
 
 	"github.com/streadway/amqp"
@@ -41,12 +42,12 @@ func NewAMQPConfig(amqpURL string) (*AMQPConfig, error) {
 func declareQueues(ch *amqp.Channel) error {
 	// Declare the session verification queue
 	_, err := ch.QueueDeclare(
-		"auth-session-verification", // Queue name
-		false,                       // Durable
-		false,                       // Delete when unused
-		false,                       // Exclusive
-		false,                       // No-wait
-		nil,                         // Arguments
+		utils.AUTH_SESSION_VERIFICATION, // Queue name
+		false,                           // Durable
+		false,                           // Delete when unused
+		false,                           // Exclusive
+		false,                           // No-wait
+		nil,                             // Arguments
 	)
 	if err != nil {
 		return err
@@ -54,12 +55,12 @@ func declareQueues(ch *amqp.Channel) error {
 
 	// Declare the session response queue
 	_, err = ch.QueueDeclare(
-		"auth-session-response", // Queue name
-		false,                   // Durable
-		false,                   // Delete when unused
-		false,                   // Exclusive
-		false,                   // No-wait
-		nil,                     // Arguments
+		utils.AUTH_SESSION_RESPONSE, // Queue name
+		false,                       // Durable
+		false,                       // Delete when unused
+		false,                       // Exclusive
+		false,                       // No-wait
+		nil,                         // Arguments
 	)
 	return err
 }

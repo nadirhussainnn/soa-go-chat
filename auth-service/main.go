@@ -48,6 +48,9 @@ func main() {
 	sessionVerifier := amqp.SessionVerifier{SessionRepo: sessionRepo}
 	sessionVerifier.ListenForSessionVerification(ch)
 
+	jwtDecoder := amqp.JWTDecoder{Secret: os.Getenv("JWT_SECRET")}
+	jwtDecoder.ListenForJWTDecode(ch)
+
 	handler := &handlers.Handler{UserRepo: userRepo, SessionRepo: sessionRepo}
 
 	http.HandleFunc("/register", handler.RegisterHandler)
