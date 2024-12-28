@@ -15,23 +15,21 @@ import (
 )
 
 type WebSocketHandler struct {
-	Connections map[string]*websocket.Conn // user_id -> WebSocket connection
+	Connections map[string]*websocket.Conn
 	Mutex       sync.Mutex
 	AMQPChannel *amqp.Channel
 	Repo        repository.ContactsRepository
 	Upgrader    websocket.Upgrader
 }
 
-func NewWebSocketHandler() *WebSocketHandler {
+func NewWebSocketHandler(repo repository.ContactsRepository, amqpChannel *amqp.Channel) *WebSocketHandler {
 	return &WebSocketHandler{
 		Connections: make(map[string]*websocket.Conn),
+		AMQPChannel: amqpChannel,
+		Repo:        repo,
 		Upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
-				// Allow all origins (for development purposes only)
 				return true
-
-				// For production, allow specific origins:
-				// return r.Header.Get("Origin") == "http://your-frontend-domain.com"
 			},
 		},
 	}
@@ -82,6 +80,7 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 
 func (h *WebSocketHandler) HandleSendContactRequest(senderID, receiverID string) {
 	// Save the contact request in the database
+
 	contactRequest := models.ContactRequest{
 		ID:         uuid.New(),
 		SenderID:   uuid.MustParse(senderID),

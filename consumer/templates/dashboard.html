@@ -15,11 +15,29 @@
     <div class="contact-chat-container">
         <!-- Contact List -->
         <div class="contact-list">
+            <div class="filter-component">
+                <button id="filter-contacts" class="filter-btn active">Contacts</button>
+                <button id="filter-requests" class="filter-btn">Requests</button>
+            </div>
             <div class="search-component">
-                <input type="text" id="search" placeholder="Search contacts">
+                <input type="text" id="search" placeholder="Search...">
             </div>
             <ul id="contact-list" class="list-items">
-                <!-- Contacts will be dynamically rendered here -->
+                <!-- Contacts List (Initially Rendered with Contacts) -->
+                {{ range .Contacts }}
+                <li class="list-item" data-contact-id="{{ .ID }}">
+                    <p class="Username">{{ .ID }}</p>
+                </li>
+                {{ end }}
+
+                <!-- Requests List (Initially Hidden) -->
+                {{ range .ContactRequests }}
+                <li class="list-item hidden request-item">
+                    <p class="Username">From: {{ .SenderID }}</p>
+                    <p>To: {{ .ReceiverID }}</p>
+                    <p>Status: {{ .Status }}</p>
+                </li>
+                {{ end }}
             </ul>
         </div>
 
@@ -30,49 +48,74 @@
     </div>
 
     <script>
-        // Sample data for contacts
-        const contacts = [
-            { id: 1, name: 'User 1' },
-            { id: 2, name: 'User 2' },
-            { id: 3, name: 'User 3' }
-        ];
-
+        // Get references to the DOM elements
         const contactListElement = document.getElementById('contact-list');
+        const searchInput = document.getElementById('search');
+        const filterContactsBtn = document.getElementById('filter-contacts');
+        const filterRequestsBtn = document.getElementById('filter-requests');
         const chatHeaderElement = document.querySelector('.chat-header .username');
         const chatMessagesElement = document.querySelector('.chat-messages');
 
-        // Render contacts
-        function renderContacts(contacts) {
-            contactListElement.innerHTML = '';
-            contacts.forEach(contact => {
-                const li = document.createElement('li');
-                li.className = 'list-item';
-                li.dataset.contactId = contact.id;
-                li.innerHTML = `<p class="Username">${contact.name}</p>`;
-                li.addEventListener('click', () => loadChat(contact));
-                contactListElement.appendChild(li);
-            });
-        }
+        let activeFilter = 'contacts'; // Default filter
 
-        // Load chat for selected contact
-        function loadChat(contact) {
-            chatHeaderElement.textContent = contact.name; // Update chat header
-            chatMessagesElement.innerHTML = ''; // Clear previous messages
-            // Add a placeholder for the selected contact's chat
-            chatMessagesElement.innerHTML = `<div class="message-bubble received"><p>Welcome to the chat with ${contact.name}!</p></div>`;
+        // Toggle between Contacts and Requests
+        filterContactsBtn.addEventListener('click', () => {
+            activeFilter = 'contacts';
+            filterContactsBtn.classList.add('active');
+            filterRequestsBtn.classList.remove('active');
+            searchInput.placeholder = 'Search contacts...';
+            updateFilter();
+        });
+
+        filterRequestsBtn.addEventListener('click', () => {
+            activeFilter = 'requests';
+            filterRequestsBtn.classList.add('active');
+            filterContactsBtn.classList.remove('active');
+            searchInput.placeholder = 'Search requests...';
+            updateFilter();
+        });
+
+        // Update the displayed list based on the active filter
+        function updateFilter() {
+            const contactItems = document.querySelectorAll('.list-item:not(.request-item)');
+            const requestItems = document.querySelectorAll('.list-item.request-item');
+
+            if (activeFilter === 'contacts') {
+                contactItems.forEach(item => item.classList.remove('hidden'));
+                requestItems.forEach(item => item.classList.add('hidden'));
+            } else {
+                contactItems.forEach(item => item.classList.add('hidden'));
+                requestItems.forEach(item => item.classList.remove('hidden'));
+            }
         }
 
         // Search functionality
-        const searchInput = document.getElementById('search');
         searchInput.addEventListener('input', (e) => {
             const query = e.target.value.toLowerCase();
-            const filteredContacts = contacts.filter(contact => contact.name.toLowerCase().includes(query));
-            renderContacts(filteredContacts);
+            const listItems = document.querySelectorAll(`.list-item${activeFilter === 'contacts' ? ':not(.request-item)' : '.request-item'}`);
+            listItems.forEach(item => {
+                const textContent = item.textContent.toLowerCase();
+                if (textContent.includes(query)) {
+                    item.classList.remove('hidden');
+                } else {
+                    item.classList.add('hidden');
+                }
+            });
         });
 
-        // Initial render
-        renderContacts(contacts);
+        // Load chat for the selected contact
+        contactListElement.addEventListener('click', (e) => {
+            const listItem = e.target.closest('.list-item:not(.request-item)');
+            if (listItem) {
+                const contactName = listItem.querySelector('.Username').textContent;
+                chatHeaderElement.textContent = contactName; // Update chat header
+                chatMessagesElement.innerHTML = ''; // Clear previous messages
+                chatMessagesElement.innerHTML = `<div class="message-bubble received"><p>Welcome to the chat with ${contactName}!</p></div>`;
+            }
+        });
 
+        // Initial filter update
+        updateFilter();
     </script>
 </body>
 </html>

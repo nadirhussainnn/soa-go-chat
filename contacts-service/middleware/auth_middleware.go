@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"contacts-service/utils"
-	"encoding/json"
+	"context"
 	"log"
 	"net/http"
 
@@ -10,23 +10,21 @@ import (
 )
 
 type AuthMiddleware struct {
-	AMQPChannel *amqp.Channel
+	AMQPConn *amqp.Connection // Use the RabbitMQ connection, not a shared channel
 }
 
-type DecodeJWTRequest struct {
-	SessionToken string `json:"session_token"`
-}
-
-type DecodeJWTResponse struct {
-	Valid    bool   `json:"valid"`
-	UserID   string `json:"user_id"`
-	Email    string `json:"email"`
-	Username string `json:"username"`
-	Error    string `json:"error,omitempty"`
-}
-
+// RequireAuth is the middleware for authenticating requests
 func (a *AuthMiddleware) RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Create a new RabbitMQ channel for this request
+		ch, err := a.AMQPConn.Channel()
+		if err != nil {
+			log.Printf("Failed to create RabbitMQ channel: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		defer ch.Close()
+
 		// Extract session_token from the cookie
 		cookie, err := r.Cookie("session_token")
 		if err != nil || cookie.Value == "" {
@@ -35,61 +33,16 @@ func (a *AuthMiddleware) RequireAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		sessionToken := cookie.Value
-		// Send request to auth-service to decode JWT
-		request := DecodeJWTRequest{SessionToken: sessionToken}
-		requestBytes, _ := json.Marshal(request)
-
-		err = a.AMQPChannel.Publish(
-			"",                    // Exchange
-			utils.AUTH_JWT_DECODE, // Routing key
-			false,                 // Mandatory
-			false,                 // Immediate
-			amqp.Publishing{
-				ContentType: "application/json",
-				Body:        requestBytes,
-			},
-		)
-		if err != nil {
-			log.Printf("Failed to publish JWT decode request: %v", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		// Decode the JWT using the helper function
+		response, err := utils.DecodeJWT(ch, cookie.Value)
+		if err != nil || !response.Valid {
+			log.Printf("Invalid session: %s", err)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
-		// Consume the response
-		msgs, err := a.AMQPChannel.Consume(
-			utils.AUTH_JWT_DECODE_RESPONSE, // Queue
-			"",                             // Consumer tag
-			true,                           // Auto-acknowledge
-			false,                          // Exclusive
-			false,                          // No-local
-			false,                          // No-wait
-			nil,                            // Args
-		)
-		if err != nil {
-			log.Printf("Failed to consume JWT decode response: %v", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-
-		// Wait for the response
-		for d := range msgs {
-			var response DecodeJWTResponse
-			if err := json.Unmarshal(d.Body, &response); err != nil {
-				log.Printf("Failed to unmarshal JWT decode response: %v", err)
-				continue
-			}
-
-			if response.Valid {
-				// Add user details to context
-				log.Printf("User authenticated: %s", response.Username)
-				next.ServeHTTP(w, r)
-				return
-			} else {
-				log.Printf("Invalid session: %s", response.Error)
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
-		}
+		// Extract user_id from session token and add it to request context
+		ctx := context.WithValue(r.Context(), "user_id", response.UserID)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

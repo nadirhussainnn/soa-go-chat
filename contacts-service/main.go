@@ -41,14 +41,12 @@ func main() {
 	defer ch.Close()
 
 	// Initialize WebSocket handler
-	webSocketHandler := utils.NewWebSocketHandler()
+	webSocketHandler := utils.NewWebSocketHandler(repo, ch)
 
 	handler := &handlers.ContactsHandler{Repo: repo}
 
-	// Use the RabbitMQ channel in middleware for session validation
 	authMiddleware := &middleware.AuthMiddleware{
-		AMQPChannel: ch, // Correctly pass the RabbitMQ channel
-
+		AMQPConn: conn, // Pass the RabbitMQ connection
 	}
 
 	http.HandleFunc("/ws", webSocketHandler.HandleWebSocket)
