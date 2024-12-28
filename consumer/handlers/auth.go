@@ -3,17 +3,17 @@ package auth
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"text/template"
 )
 
-// HandleLogin processes login requests
 func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 	GATEWAY_URL := os.Getenv("GATEWAY_URL")
+
 	// Send data to Authentication Service
 	payload := map[string]string{"username": username, "password": password}
 	jsonPayload, _ := json.Marshal(payload)
@@ -26,13 +26,86 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
+	var user struct {
+		SessionID    string `json:"session_id"`
+		UserID       string `json:"user_id"`
+		SessionToken string `json:"session_token"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&user)
+	if err != nil {
+		log.Printf("Failed to decode auth-service response: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
 	if resp.StatusCode == http.StatusOK {
-		// Forward the Set-Cookie header from auth-service to the browser
+		// Forward cookies from auth-service to the browser
 		for _, cookie := range resp.Cookies() {
 			http.SetCookie(w, cookie)
 		}
 
-		http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
+		// Fetch contacts from contacts-service
+		req, err := http.NewRequest("GET", GATEWAY_URL+"/contacts/?user_id="+user.UserID, nil)
+		if err != nil {
+			log.Printf("Failed to create request to contacts-service: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		log.Printf("Forwarding request to contacts-service: %s", req.URL)
+
+		// Set the session cookie
+		cookie := &http.Cookie{
+			Name:  "session_token",
+			Value: user.SessionToken,
+			Path:  "/",
+		}
+
+		req.AddCookie(cookie)
+		client := &http.Client{}
+		contactsResp, err := client.Do(req)
+		if err != nil {
+			log.Printf("Failed to fetch contacts: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		log.Print("Contacts response: ", contactsResp)
+		defer contactsResp.Body.Close()
+
+		if contactsResp.StatusCode != http.StatusOK {
+			log.Printf("Error from contacts-service: %s", contactsResp.Status)
+			http.Error(w, "Failed to fetch contacts", http.StatusInternalServerError)
+			return
+		}
+		log.Print("Decoding contacts response")
+		// Decode the combined response
+		var data struct {
+			Contacts []struct {
+				ID   string `json:"id"`
+				Name string `json:"name"`
+			} `json:"contacts"`
+			ContactRequests []struct {
+				ID         string `json:"id"`
+				SenderID   string `json:"sender_id"`
+				ReceiverID string `json:"receiver_id"`
+				Status     string `json:"status"`
+			} `json:"contactRequests"`
+		}
+		err = json.NewDecoder(contactsResp.Body).Decode(&data)
+		if err != nil {
+			log.Printf("Failed to decode contacts response: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("Contacts: %v", data.Contacts)
+		log.Printf("Contact Requests: %v", data.ContactRequests)
+
+		tmpl := template.Must(template.ParseGlob("templates/*.html"))
+		err = tmpl.ExecuteTemplate(w, "dashboard.html", data)
+		if err != nil {
+			log.Printf("Failed to render template: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
 	} else {
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 	}
@@ -127,83 +200,5 @@ func HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 	} else {
 		http.Error(w, "Failed to reset password", http.StatusBadRequest)
-	}
-}
-
-// HandleFetchAvailableContacts retrieves available contacts
-func HandleFetchAvailableContacts(w http.ResponseWriter, r *http.Request) {
-	GATEWAY_URL := os.Getenv("GATEWAY_URL")
-	resp, err := http.Get(GATEWAY_URL + "/contacts/available")
-	if err != nil {
-		log.Printf("Error fetching available contacts: %v", err)
-		http.Error(w, "Failed to fetch contacts", http.StatusInternalServerError)
-		return
-	}
-	defer resp.Body.Close()
-
-	w.Header().Set("Content-Type", "application/json")
-	if _, err := w.Write([]byte(fmt.Sprintf("%s", resp.Body))); err != nil {
-		log.Printf("Error writing response: %v", err)
-	}
-}
-
-// HandleFetchMyContacts retrieves the logged-in user's contacts
-func HandleFetchMyContacts(w http.ResponseWriter, r *http.Request) {
-	GATEWAY_URL := os.Getenv("GATEWAY_URL")
-	resp, err := http.Get(GATEWAY_URL + "/contacts/my")
-	if err != nil {
-		log.Printf("Error fetching user contacts: %v", err)
-		http.Error(w, "Failed to fetch user contacts", http.StatusInternalServerError)
-		return
-	}
-	defer resp.Body.Close()
-
-	w.Header().Set("Content-Type", "application/json")
-	if _, err := w.Write([]byte(fmt.Sprintf("%s", resp.Body))); err != nil {
-		log.Printf("Error writing response: %v", err)
-	}
-}
-
-// HandleSendContactRequest sends a contact request
-func HandleSendContactRequest(w http.ResponseWriter, r *http.Request) {
-	contactID := r.FormValue("contact_id")
-	GATEWAY_URL := os.Getenv("GATEWAY_URL")
-	payload := map[string]string{"contact_id": contactID}
-	jsonPayload, _ := json.Marshal(payload)
-
-	resp, err := http.Post(GATEWAY_URL+"/contacts/request", "application/json", bytes.NewBuffer(jsonPayload))
-	if err != nil {
-		log.Printf("Error sending contact request: %v", err)
-		http.Error(w, "Failed to send request", http.StatusInternalServerError)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusOK {
-		w.Write([]byte("Request sent successfully"))
-	} else {
-		http.Error(w, "Failed to send request", resp.StatusCode)
-	}
-}
-
-// HandleRemoveContact removes a contact
-func HandleRemoveContact(w http.ResponseWriter, r *http.Request) {
-	contactID := r.FormValue("contact_id")
-	GATEWAY_URL := os.Getenv("GATEWAY_URL")
-	req, _ := http.NewRequest("DELETE", GATEWAY_URL+"/contacts/remove/"+contactID, nil)
-	client := &http.Client{}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Printf("Error removing contact: %v", err)
-		http.Error(w, "Failed to remove contact", http.StatusInternalServerError)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusOK {
-		w.Write([]byte("Contact removed successfully"))
-	} else {
-		http.Error(w, "Failed to remove contact", resp.StatusCode)
 	}
 }

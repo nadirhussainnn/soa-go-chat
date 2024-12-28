@@ -41,6 +41,11 @@ func proxyHandler(targetURL string, stripPrefix string) http.HandlerFunc {
 			}
 		}
 
+		// Copy cookies from the original request to the new request
+		for _, cookie := range r.Cookies() {
+			req.AddCookie(cookie)
+		}
+
 		// Forward the request
 		resp, err := client.Do(req)
 		if err != nil {

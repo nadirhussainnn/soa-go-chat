@@ -12,7 +12,7 @@ type ContactsRepository interface {
 	AddContactRequest(req *models.ContactRequest) error
 	GetContactsByUserID(userID uuid.UUID) ([]models.Contact, error)
 	UpdateContactRequest(req *models.ContactRequest) error
-	GetContactRequestByID(requestID uuid.UUID) (*models.ContactRequest, error)
+	GetContactRequestsByUserID(userID uuid.UUID) ([]models.ContactRequest, error)
 }
 
 type contactsRepository struct {
@@ -41,8 +41,8 @@ func (r *contactsRepository) UpdateContactRequest(req *models.ContactRequest) er
 	return r.db.Model(&models.ContactRequest{}).Where("id = ?", req.ID).Updates(req).Error
 }
 
-func (r *contactsRepository) GetContactRequestByID(requestID uuid.UUID) (*models.ContactRequest, error) {
-	var request models.ContactRequest
-	err := r.db.Where("id = ?", requestID).First(&request).Error
-	return &request, err
+func (r *contactsRepository) GetContactRequestsByUserID(userID uuid.UUID) ([]models.ContactRequest, error) {
+	var contactRequests []models.ContactRequest
+	err := r.db.Where("receiver_id = ?", userID).Find(&contactRequests).Error
+	return contactRequests, err
 }

@@ -21,7 +21,6 @@ type Handler struct {
 
 // LoginHandler handles user login
 func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
-
 	JWT_SECRET := []byte(os.Getenv("JWT_SECRET"))
 
 	var credentials struct {
@@ -37,13 +36,12 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	// Fetch the user
 	user, err := h.UserRepo.GetUserByUsername(credentials.Username)
 	if err != nil {
-		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+		http.Error(w, "Invalid username", http.StatusUnauthorized)
 		return
 	}
-
 	// Compare passwords
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(credentials.Password)); err != nil {
-		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+		http.Error(w, "Invalid password", http.StatusUnauthorized)
 		return
 	}
 
@@ -55,13 +53,11 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		"email":      user.Email,
 		"session_id": session_id,
 	})
-
 	tokenString, err := token.SignedString(JWT_SECRET)
 	if err != nil {
 		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
 		return
 	}
-
 	// Create a session
 	session := &models.Session{
 		ID:     session_id,
@@ -72,7 +68,6 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to create session", http.StatusInternalServerError)
 		return
 	}
-
 	// Set the session cookie
 	new_cookie := &http.Cookie{
 		Name:    "session_token",
@@ -82,12 +77,10 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		Path: "/",
 	}
 	http.SetCookie(w, new_cookie)
-	log.Print("Http Cookie", new_cookie)
 	w.WriteHeader(http.StatusOK)
-	log.Print("Token", tokenString)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"session_id": session.ID.String(), "user_id": session.UserID.String()})
+	json.NewEncoder(w).Encode(map[string]string{"session_id": session.ID.String(), "user_id": session.UserID.String(), "session_token": tokenString})
 }
 
 func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -97,6 +90,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Print("Cookie: ", cookie.Value)
 	// Delete the session
 	if err := h.SessionRepo.DeleteSession(cookie.Value); err != nil {
 		http.Error(w, "Failed to delete session", http.StatusInternalServerError)

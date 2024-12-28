@@ -19,21 +19,47 @@ type ContactsHandler struct {
 
 func (h *ContactsHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
 
-	log.Println("Getting contacts", r.URL)
-	query := r.URL.Query().Get("user_id") // Get the search query from the request
-
+	query := r.URL.Query().Get("user_id")
 	if query == "" {
-		http.Error(w, "Search query is required", http.StatusBadRequest)
+		http.Error(w, "user_id is required", http.StatusBadRequest)
 		return
 	}
 
-	contacts, err := h.Repo.GetContactsByUserID(uuid.MustParse(query))
+	userID, err := uuid.Parse(query)
 	if err != nil {
-		http.Error(w, "Failed to search Users", http.StatusInternalServerError)
+		http.Error(w, "Invalid user_id format", http.StatusBadRequest)
 		return
 	}
 
-	// Send the matching contacts as JSON
+	// Fetch contacts
+	contacts, err := h.Repo.GetContactsByUserID(userID)
+	if err != nil {
+		log.Printf("Failed to fetch contacts: %v", err)
+		http.Error(w, "Failed to fetch contacts", http.StatusInternalServerError)
+		return
+	}
+
+	// Fetch contact requests
+	contactRequests, err := h.Repo.GetContactRequestsByUserID(userID)
+	if err != nil {
+		log.Printf("Failed to fetch contact requests: %v", err)
+		http.Error(w, "Failed to fetch contact requests", http.StatusInternalServerError)
+		return
+	}
+	// Combine results
+	response := map[string]interface{}{
+		"contacts":        contacts,
+		"contactRequests": contactRequests,
+	}
+
+	// Send the combined response as JSON
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(contacts)
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode response: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	log.Println("Response sent successfully")
 }
