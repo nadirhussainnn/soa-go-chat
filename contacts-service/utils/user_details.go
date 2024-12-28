@@ -5,11 +5,19 @@ import (
 	"errors"
 	"log"
 
+	"fmt"
+	"net/http"
+
 	"github.com/streadway/amqp"
 )
 
 type DecodeJWTRequest struct {
 	SessionToken string `json:"session_token"`
+}
+
+type UserDetails struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
 }
 
 type DecodeJWTResponse struct {
@@ -74,7 +82,24 @@ func DecodeJWT(amqpChannel *amqp.Channel, sessionToken string) (*DecodeJWTRespon
 	return nil, errors.New("no response from auth-service")
 }
 
-// DecodeJWTForService allows services to directly fetch user details from JWT
-func DecodeJWTForService(amqpChannel *amqp.Channel, sessionToken string) (*DecodeJWTResponse, error) {
-	return DecodeJWT(amqpChannel, sessionToken)
+func GetUserDetails(authServiceURL, userID string) (*UserDetails, error) {
+	url := fmt.Sprintf("%s/user/details?user_id=%s", authServiceURL, userID)
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Printf("Failed to fetch user details: %v", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("Auth service returned non-OK status: %d", resp.StatusCode)
+		return nil, fmt.Errorf("failed to fetch user details")
+	}
+
+	var userDetails UserDetails
+	if err := json.NewDecoder(resp.Body).Decode(&userDetails); err != nil {
+		log.Printf("Failed to decode user details response: %v", err)
+		return nil, err
+	}
+	return &userDetails, nil
 }

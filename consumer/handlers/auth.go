@@ -77,29 +77,34 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Print("Decoding contacts response")
-		// Decode the combined response
 		var data struct {
 			Contacts []struct {
 				ID   string `json:"id"`
 				Name string `json:"name"`
 			} `json:"contacts"`
 			ContactRequests []struct {
-				ID         string `json:"id"`
-				SenderID   string `json:"sender_id"`
-				ReceiverID string `json:"receiver_id"`
-				Status     string `json:"status"`
+				ID                 string `json:"id"`
+				SenderID           string `json:"sender_id"`
+				ReceiverID         string `json:"receiver_id"`
+				Status             string `json:"status"`
+				CreatedAtFormatted string `json:"created_at_formatted"`
+				SenderDetails      struct {
+					Username string `json:"username"`
+					Email    string `json:"email"`
+				} `json:"sender_details"`
 			} `json:"contactRequests"`
 		}
+
 		err = json.NewDecoder(contactsResp.Body).Decode(&data)
 		if err != nil {
 			log.Printf("Failed to decode contacts response: %v", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
-
-		log.Printf("Contacts: %v", data.Contacts)
-		log.Printf("Contact Requests: %v", data.ContactRequests)
-
+		// Log contact requests properly
+		for _, request := range data.ContactRequests {
+			log.Printf("Contact Request - SenderID: %s, ReceiverID: %s, Status: %s", request.SenderID, request.ReceiverID, request.Status)
+		}
 		tmpl := template.Must(template.ParseGlob("templates/*.html"))
 		err = tmpl.ExecuteTemplate(w, "dashboard.html", data)
 		if err != nil {

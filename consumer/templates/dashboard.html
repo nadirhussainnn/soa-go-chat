@@ -20,24 +20,25 @@
                 <button id="filter-requests" class="filter-btn">Requests</button>
             </div>
             <div class="search-component">
-                <input type="text" id="search" placeholder="Search...">
+                <input type="text" id="search" placeholder="Search contacts...">
             </div>
             <ul id="contact-list" class="list-items">
-                <!-- Contacts List (Initially Rendered with Contacts) -->
+                <!-- Contacts List -->
                 {{ range .Contacts }}
-                <li class="list-item" data-contact-id="{{ .ID }}">
-                    <p class="Username">{{ .ID }}</p>
+                <li class="list-item contact-item">
+                    <p class="username">{{ .Name }}</p>
                 </li>
                 {{ end }}
 
-                <!-- Requests List (Initially Hidden) -->
-                {{ range .ContactRequests }}
-                <li class="list-item hidden request-item">
-                    <p class="Username">From: {{ .SenderID }}</p>
-                    <p>To: {{ .ReceiverID }}</p>
-                    <p>Status: {{ .Status }}</p>
-                </li>
-                {{ end }}
+                <!-- Requests List -->
+            {{ range .ContactRequests }}
+            <li class="list-item request-item hidden">
+                <p><strong>From:</strong> {{ .SenderDetails.Username }} ({{ .SenderDetails.Email }})</p>
+                <p><strong>To:</strong> {{ .ReceiverID }}</p>
+                <p><strong>Status:</strong> {{ .Status }}</p>
+                <p><strong>Date:</strong> {{ .CreatedAtFormatted }}</p>
+            </li>
+            {{ end }}
             </ul>
         </div>
 
@@ -48,7 +49,7 @@
     </div>
 
     <script>
-        // Get references to the DOM elements
+        // DOM references
         const contactListElement = document.getElementById('contact-list');
         const searchInput = document.getElementById('search');
         const filterContactsBtn = document.getElementById('filter-contacts');
@@ -56,7 +57,7 @@
         const chatHeaderElement = document.querySelector('.chat-header .username');
         const chatMessagesElement = document.querySelector('.chat-messages');
 
-        let activeFilter = 'contacts'; // Default filter
+        let activeFilter = 'contacts'; // Default to showing contacts
 
         // Toggle between Contacts and Requests
         filterContactsBtn.addEventListener('click', () => {
@@ -77,7 +78,7 @@
 
         // Update the displayed list based on the active filter
         function updateFilter() {
-            const contactItems = document.querySelectorAll('.list-item:not(.request-item)');
+            const contactItems = document.querySelectorAll('.list-item.contact-item');
             const requestItems = document.querySelectorAll('.list-item.request-item');
 
             if (activeFilter === 'contacts') {
@@ -92,7 +93,11 @@
         // Search functionality
         searchInput.addEventListener('input', (e) => {
             const query = e.target.value.toLowerCase();
-            const listItems = document.querySelectorAll(`.list-item${activeFilter === 'contacts' ? ':not(.request-item)' : '.request-item'}`);
+            const listItems = document.querySelectorAll(
+                activeFilter === 'contacts'
+                    ? '.list-item.contact-item'
+                    : '.list-item.request-item'
+            );
             listItems.forEach(item => {
                 const textContent = item.textContent.toLowerCase();
                 if (textContent.includes(query)) {
@@ -105,16 +110,16 @@
 
         // Load chat for the selected contact
         contactListElement.addEventListener('click', (e) => {
-            const listItem = e.target.closest('.list-item:not(.request-item)');
+            const listItem = e.target.closest('.list-item.contact-item');
             if (listItem) {
-                const contactName = listItem.querySelector('.Username').textContent;
+                const contactName = listItem.querySelector('.username').textContent;
                 chatHeaderElement.textContent = contactName; // Update chat header
                 chatMessagesElement.innerHTML = ''; // Clear previous messages
                 chatMessagesElement.innerHTML = `<div class="message-bubble received"><p>Welcome to the chat with ${contactName}!</p></div>`;
             }
         });
 
-        // Initial filter update
+        // Initialize with contacts visible
         updateFilter();
     </script>
 </body>

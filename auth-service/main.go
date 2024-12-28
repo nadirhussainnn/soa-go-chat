@@ -59,6 +59,7 @@ func main() {
 	http.HandleFunc("/logout", handler.LogoutHandler)
 	// http.Handle("/search", authMiddleware.RequireAuth(http.HandlerFunc(handler.SearchContacts)))
 	http.HandleFunc("/search", handler.SearchContacts)
+	http.HandleFunc("/details", handler.GetUserDetailsHandler)
 
 	// // Example protected route
 	// http.Handle("/protected", middleware.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -19,4 +19,12 @@ type ContactRequest struct {
 	ReceiverID uuid.UUID `gorm:"type:uuid;not null"`
 	Status     string    `gorm:"default:pending"` // pending, accepted, rejected
 	CreatedAt  time.Time `gorm:"autoCreateTime"`
+
+	SenderDetails      *SenderDetails `gorm:"-"`
+	CreatedAtFormatted string         `gorm:"-"`
+}
+
+type SenderDetails struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
 }

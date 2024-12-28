@@ -9,6 +9,7 @@ import (
 type UserRepository interface {
 	CreateUser(user *models.User) error
 	GetUserByUsername(username string) (*models.User, error)
+	GetUserByID(id string) (*models.User, error)
 	UpdateUser(user *models.User) error
 	SearchUser(query string) ([]models.User, error)
 }
@@ -34,6 +35,12 @@ func (r *userRepository) SearchUser(query string) ([]models.User, error) {
 func (r *userRepository) GetUserByUsername(username string) (*models.User, error) {
 	var user models.User
 	err := r.db.Where("username = ?", username).First(&user).Error
+	return &user, err
+}
+
+func (r *userRepository) GetUserByID(id string) (*models.User, error) {
+	var user models.User
+	err := r.db.Where("id = ?", id).First(&user).Error
 	return &user, err
 }
 
