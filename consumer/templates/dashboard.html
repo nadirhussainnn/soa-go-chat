@@ -6,6 +6,53 @@
     <title>Go Chat - Dashboard</title>
     <link rel="stylesheet" href="/static/index.css">
     <link rel="stylesheet" href="/static/dashboard.css">
+    <style>
+        .list-item {
+            padding: 15px;
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .hidden {
+            display: none;
+        }
+        .request-item {
+            display: flex;
+            flex-direction: column;
+            align-items: start;
+        }
+        .action-buttons {
+            margin-top: 10px;
+        }
+        .accept-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            margin-right: 5px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .reject-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .accept-btn:hover {
+            background-color: #218838;
+        }
+        .reject-btn:hover {
+            background-color: #c82333;
+        }
+        .filter-btn.active {
+            font-weight: bold;
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
     <!-- Include Header -->
@@ -15,30 +62,17 @@
     <div class="contact-chat-container">
         <!-- Contact List -->
         <div class="contact-list">
-            <div class="filter-component">
-                <button id="filter-contacts" class="filter-btn active">Contacts</button>
-                <button id="filter-requests" class="filter-btn">Requests</button>
-            </div>
             <div class="search-component">
-                <input type="text" id="search" placeholder="Search contacts...">
+                <input type="text" id="search" placeholder="Search...">
             </div>
             <ul id="contact-list" class="list-items">
                 <!-- Contacts List -->
                 {{ range .Contacts }}
                 <li class="list-item contact-item">
-                    <p class="username">{{ .Name }}</p>
+                    <p><strong>Name:</strong> {{ .Details.Username }}</p>
+                    <p><strong>Email:</strong> {{ .Details.Email }}</p>
                 </li>
                 {{ end }}
-
-                <!-- Requests List -->
-            {{ range .ContactRequests }}
-            <li class="list-item request-item hidden">
-                <p><strong>From:</strong> {{ .SenderDetails.Username }} ({{ .SenderDetails.Email }})</p>
-                <p><strong>To:</strong> {{ .ReceiverID }}</p>
-                <p><strong>Status:</strong> {{ .Status }}</p>
-                <p><strong>Date:</strong> {{ .CreatedAtFormatted }}</p>
-            </li>
-            {{ end }}
             </ul>
         </div>
 
@@ -49,78 +83,48 @@
     </div>
 
     <script>
-        // DOM references
-        const contactListElement = document.getElementById('contact-list');
-        const searchInput = document.getElementById('search');
-        const filterContactsBtn = document.getElementById('filter-contacts');
-        const filterRequestsBtn = document.getElementById('filter-requests');
-        const chatHeaderElement = document.querySelector('.chat-header .username');
-        const chatMessagesElement = document.querySelector('.chat-messages');
 
-        let activeFilter = 'contacts'; // Default to showing contacts
+        let userId = "{{ .UserID }}";
+        console.log("userId, userId", userId);
+        // WebSocket connection
+        const ws = new WebSocket(`ws://localhost:8080/ws/contacts?user_id=${userId}`);
 
-        // Toggle between Contacts and Requests
-        filterContactsBtn.addEventListener('click', () => {
-            activeFilter = 'contacts';
-            filterContactsBtn.classList.add('active');
-            filterRequestsBtn.classList.remove('active');
-            searchInput.placeholder = 'Search contacts...';
-            updateFilter();
-        });
+        ws.onopen = () => {
+            console.log("WebSocket connection established.");
+        };
 
-        filterRequestsBtn.addEventListener('click', () => {
-            activeFilter = 'requests';
-            filterRequestsBtn.classList.add('active');
-            filterContactsBtn.classList.remove('active');
-            searchInput.placeholder = 'Search requests...';
-            updateFilter();
-        });
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
 
-        // Update the displayed list based on the active filter
-        function updateFilter() {
-            const contactItems = document.querySelectorAll('.list-item.contact-item');
-            const requestItems = document.querySelectorAll('.list-item.request-item');
+            if (data.type === "contact_request_update") {
+                const requestElement = document.querySelector(`[data-request-id="${data.id}"]`);
 
-            if (activeFilter === 'contacts') {
-                contactItems.forEach(item => item.classList.remove('hidden'));
-                requestItems.forEach(item => item.classList.add('hidden'));
-            } else {
-                contactItems.forEach(item => item.classList.add('hidden'));
-                requestItems.forEach(item => item.classList.remove('hidden'));
-            }
-        }
+                if (requestElement) {
+                    requestElement.remove();
 
-        // Search functionality
-        searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            const listItems = document.querySelectorAll(
-                activeFilter === 'contacts'
-                    ? '.list-item.contact-item'
-                    : '.list-item.request-item'
-            );
-            listItems.forEach(item => {
-                const textContent = item.textContent.toLowerCase();
-                if (textContent.includes(query)) {
-                    item.classList.remove('hidden');
-                } else {
-                    item.classList.add('hidden');
+                    if (data.action === "accept") {
+                        const contactList = document.querySelector(".list-items");
+                        const contactItem = document.createElement("li");
+                        contactItem.classList.add("list-item", "contact-item");
+                        contactItem.innerHTML = `
+                            <p><strong>Name:</strong> ${data.sender_username}</p>
+                            <p><strong>Email:</strong> ${data.sender_email}</p>
+                        `;
+                        contactList.appendChild(contactItem);
+                    }
                 }
-            });
-        });
-
-        // Load chat for the selected contact
-        contactListElement.addEventListener('click', (e) => {
-            const listItem = e.target.closest('.list-item.contact-item');
-            if (listItem) {
-                const contactName = listItem.querySelector('.username').textContent;
-                chatHeaderElement.textContent = contactName; // Update chat header
-                chatMessagesElement.innerHTML = ''; // Clear previous messages
-                chatMessagesElement.innerHTML = `<div class="message-bubble received"><p>Welcome to the chat with ${contactName}!</p></div>`;
             }
-        });
+        };
 
-        // Initialize with contacts visible
-        updateFilter();
+        ws.onclose = () => {
+            console.log("WebSocket connection closed.");
+        };
+
+        ws.onerror = (error) => {
+            console.error("WebSocket error:", error);
+        };
+
+
     </script>
 </body>
 </html>

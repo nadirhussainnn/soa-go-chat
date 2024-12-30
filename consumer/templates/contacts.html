@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contacts</title>
+    <link rel="stylesheet" href="/static/index.css">
+    <style>
+        .contact-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <h1>Contacts</h1>
+    <ul>
+        {{ range .Contacts }}
+        <li class="contact-item">
+            <p><strong>Name:</strong> {{ .Details.Username }}</p>
+            <p><strong>Email:</strong> {{ .Details.Email }}</p>
+        </li>
+        {{ end }}
+    </ul>
+</body>
+</html>

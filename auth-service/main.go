@@ -51,6 +51,8 @@ func main() {
 	jwtDecoder := amqp.JWTDecoder{Secret: os.Getenv("JWT_SECRET")}
 	jwtDecoder.ListenForJWTDecode(ch)
 
+	amqp.ListenForBatchDetails(ch, userRepo)
+
 	handler := &handlers.Handler{UserRepo: userRepo, SessionRepo: sessionRepo}
 
 	http.HandleFunc("/register", handler.RegisterHandler)

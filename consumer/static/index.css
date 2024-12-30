@@ -140,8 +140,9 @@ footer {
     margin-top: 1.5rem;
 }
 
-.additional-links .btn {
-    font-size: 0.9rem;
-    padding: 0.5rem 1rem;
+.additional-links a {
+    color: #0078d7;
+    font-size: 1rem;
+    padding: 1rem 1rem;
     margin: 0.5rem;
 }

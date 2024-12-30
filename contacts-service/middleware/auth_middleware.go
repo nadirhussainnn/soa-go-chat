@@ -35,12 +35,14 @@ func (a *AuthMiddleware) RequireAuth(next http.Handler) http.Handler {
 
 		// Decode the JWT using the helper function
 		response, err := utils.DecodeJWT(ch, cookie.Value)
+		log.Print("Decode Response", response)
+
 		if err != nil || !response.Valid {
 			log.Printf("Invalid session: %s", err)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-
+		log.Print("User ID", response.UserID)
 		// Extract user_id from session token and add it to request context
 		ctx := context.WithValue(r.Context(), "user_id", response.UserID)
 		next.ServeHTTP(w, r.WithContext(ctx))

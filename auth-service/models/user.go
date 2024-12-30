@@ -12,6 +12,11 @@ type User struct {
 	Email    string    `gorm:"uniqueIndex;not null"`
 }
 
+type SenderDetails struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+}
+
 // BeforeCreate hook to generate UUID before saving
 func (user *User) BeforeCreate(tx *gorm.DB) (err error) {
 	user.ID = uuid.New()
