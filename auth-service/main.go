@@ -51,6 +51,8 @@ func main() {
 	jwtDecoder := amqp.JWTDecoder{Secret: os.Getenv("JWT_SECRET")}
 	jwtDecoder.ListenForJWTDecode(ch)
 
+	amqp.ListenForBatchDetails(ch, userRepo)
+
 	handler := &handlers.Handler{UserRepo: userRepo, SessionRepo: sessionRepo}
 
 	http.HandleFunc("/register", handler.RegisterHandler)
@@ -59,6 +61,7 @@ func main() {
 	http.HandleFunc("/logout", handler.LogoutHandler)
 	// http.Handle("/search", authMiddleware.RequireAuth(http.HandlerFunc(handler.SearchContacts)))
 	http.HandleFunc("/search", handler.SearchContacts)
+	http.HandleFunc("/details", handler.GetUserDetailsHandler)
 
 	// // Example protected route
 	// http.Handle("/protected", middleware.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

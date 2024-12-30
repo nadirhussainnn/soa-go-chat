@@ -36,22 +36,27 @@ func main() {
 	repo := repository.NewContactsRepository(db)
 
 	// Set up RabbitMQ
-	conn, ch := amqp.InitRabbitMQ(AMQP_URL)
+	conn, _ := amqp.InitRabbitMQ(AMQP_URL) // Connection setup
 	defer conn.Close()
-	defer ch.Close()
 
 	// Initialize WebSocket handler
-	webSocketHandler := utils.NewWebSocketHandler(repo, ch)
+	webSocketHandler := utils.NewWebSocketHandler(repo, nil) // Pass nil as channel is now dynamic
 
-	handler := &handlers.ContactsHandler{Repo: repo}
+	handler := &handlers.ContactsHandler{
+		Repo:             repo,
+		WebSocketHandler: webSocketHandler,
+		AMQPConn:         conn, // Pass the RabbitMQ connection
+	}
 
 	authMiddleware := &middleware.AuthMiddleware{
-		AMQPConn: conn, // Pass the RabbitMQ connection
+		AMQPConn: conn,
 	}
 
 	http.HandleFunc("/ws", webSocketHandler.HandleWebSocket)
 
 	http.Handle("/", authMiddleware.RequireAuth(http.HandlerFunc(handler.GetContacts)))
+	http.HandleFunc("/contacts/request/action", handlers.HandleRequestAction)
+	http.Handle("/pending_requests/", authMiddleware.RequireAuth(http.HandlerFunc(handler.FetchPendingRequests)))
 
 	log.Println("Contacts service running on port", PORT)
 	log.Fatal(http.ListenAndServe(":"+PORT, nil))

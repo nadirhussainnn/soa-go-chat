@@ -15,15 +15,12 @@ import (
 func proxyHandler(targetURL string, stripPrefix string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		log.Printf("Proxying request: %s %s", r.Method, r.URL.String())
-
 		// Strip prefix and construct target URL including query parameters
 		forwardPath := r.URL.Path[len(stripPrefix):]
 		fullURL := targetURL + forwardPath
 		if r.URL.RawQuery != "" {
 			fullURL += "?" + r.URL.RawQuery
 		}
-		log.Printf("Forwarding to: %s", fullURL)
 
 		// Create a new request with the same method, headers, and body
 		client := &http.Client{}
@@ -45,9 +42,11 @@ func proxyHandler(targetURL string, stripPrefix string) http.HandlerFunc {
 		for _, cookie := range r.Cookies() {
 			req.AddCookie(cookie)
 		}
+		log.Printf("Forwarding to: %s", fullURL)
 
 		// Forward the request
 		resp, err := client.Do(req)
+		log.Print("Sending Request: ", req)
 		if err != nil {
 			log.Printf("Error forwarding request: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -62,7 +61,6 @@ func proxyHandler(targetURL string, stripPrefix string) http.HandlerFunc {
 			}
 		}
 		w.WriteHeader(resp.StatusCode)
-
 		// Copy response body to the original response writer
 		io.Copy(w, resp.Body)
 		log.Printf("Response forwarded with status: %d", resp.StatusCode)
@@ -186,7 +184,8 @@ func main() {
 		"contacts":  CONTACTS_SERVICE_WS_URL,
 		"messaging": MESSAGING_SERVICE_WS_URL,
 	}
-	r.HandleFunc("/ws/{path}", wsProxyHandler(serviceURLs)).Methods("GET")
+
+	r.HandleFunc("/ws/{path}", wsProxyHandler(serviceURLs)).Methods("GET", "POST")
 
 	log.Println("Gateway running on port", PORT)
 	log.Fatal(http.ListenAndServe(fmt.Sprint(":", PORT), r))

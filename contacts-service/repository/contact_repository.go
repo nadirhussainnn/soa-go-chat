@@ -11,6 +11,7 @@ type ContactsRepository interface {
 	AcceptOrReject(contact *models.Contact) error
 	AddContactRequest(req *models.ContactRequest) error
 	GetContactsByUserID(userID uuid.UUID) ([]models.Contact, error)
+	GetContactRequestByID(userID string) (*models.ContactRequest, error)
 	UpdateContactRequest(req *models.ContactRequest) error
 	GetContactRequestsByUserID(userID uuid.UUID) ([]models.ContactRequest, error)
 }
@@ -43,6 +44,16 @@ func (r *contactsRepository) UpdateContactRequest(req *models.ContactRequest) er
 
 func (r *contactsRepository) GetContactRequestsByUserID(userID uuid.UUID) ([]models.ContactRequest, error) {
 	var contactRequests []models.ContactRequest
-	err := r.db.Where("receiver_id = ?", userID).Find(&contactRequests).Error
+	// Filter requests where receiver_id matches and status is "pending"
+	err := r.db.Where("receiver_id = ? AND status = ?", userID, "pending").Find(&contactRequests).Error
 	return contactRequests, err
+}
+
+func (r *contactsRepository) GetContactRequestByID(requestID string) (*models.ContactRequest, error) {
+	var request models.ContactRequest
+	err := r.db.Where("id = ?", requestID).First(&request).Error
+	if err != nil {
+		return nil, err
+	}
+	return &request, nil
 }

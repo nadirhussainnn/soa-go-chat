@@ -80,7 +80,7 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"session_id": session.ID.String(), "user_id": session.UserID.String(), "session_token": tokenString})
+	json.NewEncoder(w).Encode(map[string]string{"user_id": session.UserID.String(), "session_token": tokenString})
 }
 
 func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -190,4 +190,28 @@ func (h *Handler) SearchContacts(w http.ResponseWriter, r *http.Request) {
 	// Send the matching contacts as JSON
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(contacts)
+}
+
+// GetUserDetailsHandler fetches user details by user ID
+func (h *Handler) GetUserDetailsHandler(w http.ResponseWriter, r *http.Request) {
+	userID := r.URL.Query().Get("user_id")
+	if userID == "" {
+		http.Error(w, "user_id is required", http.StatusBadRequest)
+		return
+	}
+
+	user, err := h.UserRepo.GetUserByID(userID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	response := map[string]string{
+		"id":       user.ID.String(),
+		"username": user.Username,
+		"email":    user.Email,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }

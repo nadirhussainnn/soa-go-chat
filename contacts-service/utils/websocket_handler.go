@@ -59,7 +59,9 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 	for {
 		var message struct {
 			Type         string `json:"type"`
+			RequestID    string `json:"request_id"`
 			UserID       string `json:"user_id"`
+			Action       string `json:"action"` // accept or reject
 			TargetUserID string `json:"target_user_id"`
 		}
 		err := conn.ReadJSON(&message)
@@ -70,10 +72,14 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 			h.Mutex.Unlock()
 			return
 		}
-
-		// Handle `send_contact_request` message type
-		if message.Type == "send_contact_request" {
+		log.Print("Received message", message)
+		switch message.Type {
+		case "send_contact_request":
 			h.HandleSendContactRequest(message.UserID, message.TargetUserID)
+		case "accept_contact_request":
+			h.HandleAcceptRejectContactRequest(message.RequestID, message.Action, userID, message.TargetUserID)
+		case "reject_contact_request":
+			h.HandleAcceptRejectContactRequest(message.RequestID, message.Action, userID, message.TargetUserID)
 		}
 	}
 }
@@ -121,5 +127,59 @@ func (h *WebSocketHandler) HandleSendContactRequest(senderID, receiverID string)
 			log.Printf("Failed to notify offline user %s via AMQP: %v", receiverID, err)
 		}
 		log.Printf("User %s is offline. Notification queued via AMQP.", receiverID)
+	}
+}
+
+func (h *WebSocketHandler) HandleAcceptRejectContactRequest(requestID, action, userID, targetUserID string) {
+	// Fetch the request
+	log.Print("Accepting or rejecting contact request", requestID, action, userID, targetUserID)
+	request, err := h.Repo.GetContactRequestByID(requestID)
+	if err != nil {
+		log.Printf("Failed to fetch contact request: %v", err)
+		return
+	}
+
+	if action == "accept" {
+		request.Status = "accepted"
+		// Add the contact to the database
+		err := h.Repo.AcceptOrReject(&models.Contact{
+			UserID:    request.SenderID,
+			ContactID: request.ReceiverID,
+		})
+		if err != nil {
+			log.Printf("Failed to add contact: %v", err)
+			return
+		}
+	} else if action == "reject" {
+		request.Status = "rejected"
+	} else {
+		log.Printf("Invalid action: %s", action)
+		return
+	}
+
+	// Update the request in the database
+	err = h.Repo.UpdateContactRequest(request)
+	if err != nil {
+		log.Printf("Failed to update request: %v", err)
+		return
+	}
+
+	// Broadcast the update to the target user if online
+	h.Mutex.Lock()
+	targetConn, online := h.Connections[targetUserID]
+	h.Mutex.Unlock()
+
+	if online {
+		err := targetConn.WriteJSON(map[string]string{
+			"type":   "contact_request_update",
+			"action": action,
+			"status": request.Status,
+			"id":     request.ID.String(),
+		})
+		if err != nil {
+			log.Printf("Failed to send update to target user: %v", err)
+		}
+	} else {
+		log.Printf("Target user %s is offline. No real-time update sent.", targetUserID)
 	}
 }
