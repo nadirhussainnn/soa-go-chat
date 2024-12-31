@@ -243,15 +243,16 @@ func ListenForBatchDetails(channel *amqp.Channel, userRepo repository.UserReposi
 				log.Printf("Failed to marshal response: %v", err)
 				continue
 			}
-
+			log.Print("CorreltionID", d.CorrelationId)
 			err = channel.Publish(
 				"",                                // Exchange
 				utils.AUTH_BATCH_DETAILS_RESPONSE, // Routing key (response queue)
 				false,                             // Mandatory
 				false,                             // Immediate
 				amqp.Publishing{
-					ContentType: "application/json",
-					Body:        responseBytes,
+					ContentType:   "application/json",
+					Body:          responseBytes,
+					CorrelationId: d.CorrelationId,
 				},
 			)
 			if err != nil {

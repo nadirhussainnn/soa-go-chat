@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/google/uuid"
 	"github.com/streadway/amqp"
 )
 
@@ -112,6 +113,8 @@ func GetUsersDetails(channel *amqp.Channel, userIDs []string) (map[string]*model
 		return nil, err
 	}
 
+	correlationID := uuid.New().String() // Generate a unique CorrelationId
+
 	// Publish the request to the request queue
 	err = channel.Publish(
 		"",                         // Exchange
@@ -119,15 +122,16 @@ func GetUsersDetails(channel *amqp.Channel, userIDs []string) (map[string]*model
 		false,                      // Mandatory
 		false,                      // Immediate
 		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        payload,
+			ContentType:   "application/json",
+			Body:          payload,
+			CorrelationId: correlationID,
 		},
 	)
 	if err != nil {
 		log.Printf("Failed to publish batch request: %v", err)
 		return nil, err
 	}
-
+	log.Print("Sent request with coooorr", correlationID)
 	// Consume messages from the response queue
 	msgs, err := channel.Consume(
 		AUTH_BATCH_DETAILS_RESPONSE, // Queue name (response queue)
