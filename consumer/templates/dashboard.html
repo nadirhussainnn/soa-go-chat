@@ -82,7 +82,24 @@
         </div>
     </div>
 
-    <!-- <script>
+    <script>
+
+         // Search Functionality
+    document.getElementById("search").addEventListener("keyup", function () {
+        const query = this.value.toLowerCase();
+        const contacts = document.querySelectorAll(".contact-item");
+
+        contacts.forEach((contact) => {
+            const name = contact.querySelector("p strong").nextSibling.nodeValue.toLowerCase();
+            const email = contact.querySelector("p:nth-child(2)").innerText.toLowerCase();
+
+            if (name.includes(query) || email.includes(query)) {
+                contact.style.display = ""; // Show
+            } else {
+                contact.style.display = "none"; // Hide
+            }
+        });
+    });
 
         let userId = "{{ .UserID }}";
         console.log("userId, userId", userId);
@@ -125,6 +142,6 @@
         };
 
 
-    </script> -->
+    </script>
 </body>
 </html>
