@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Go Chat - Dashboard</title>
+    <title>Go Chat - Contacts</title>
     <link rel="stylesheet" href="/static/index.css">
-    <link rel="stylesheet" href="/static/dashboard.css">
+    <link rel="stylesheet" href="/static/contacts.css">
     <style>
         .list-item {
             padding: 15px;
@@ -17,40 +17,27 @@
         .hidden {
             display: none;
         }
-        .request-item {
-            display: flex;
-            flex-direction: column;
-            align-items: start;
-        }
-        .action-buttons {
+        .action-btn {
             margin-top: 10px;
-        }
-        .accept-btn {
-            background-color: #28a745;
-            color: white;
-            border: none;
             padding: 5px 10px;
-            margin-right: 5px;
             border-radius: 3px;
             cursor: pointer;
         }
-        .reject-btn {
+        .send-request-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+        }
+        .send-request-btn:hover {
+            background-color: #0056b3;
+        }
+        .remove-btn {
             background-color: #dc3545;
             color: white;
             border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
-            cursor: pointer;
         }
-        .accept-btn:hover {
-            background-color: #218838;
-        }
-        .reject-btn:hover {
+        .remove-btn:hover {
             background-color: #c82333;
-        }
-        .filter-btn.active {
-            font-weight: bold;
-            text-decoration: underline;
         }
     </style>
 </head>
@@ -60,68 +47,91 @@
 
     <!-- Main Content -->
     <div class="contact-chat-container">
-        <!-- Contact List -->
-        <div class="contact-list">
-            <div class="search-component">
-                <input type="text" id="search" placeholder="Search...">
-            </div>
-            <ul id="contact-list" class="list-items">
-                <!-- Contacts List -->
-                {{ range .Contacts }}
-                <li class="list-item contact-item">
-                    <p><strong>Name:</strong> {{ .Details.Username }}</p>
-                    <p><strong>Email:</strong> {{ .Details.Email }}</p>
-                </li>
-                {{ end }}
-            </ul>
+        <div class="search-component">
+            <input type="text" id="search" placeholder="Search...">
         </div>
-
-       
+        <ul id="contact-list" class="list-items">
+            {{ range .Contacts }}
+            <li class="list-item contact-item">
+                <p><strong>Name:</strong> {{ .Details.Username }}</p>
+                <p><strong>Email:</strong> {{ .Details.Email }}</p>
+                <button class="action-btn remove-btn" data-contact-id="{{ .ContactID }}">Remove</button>
+            </li>
+            {{ end }}
+        </ul>
+        <ul id="search-results" class="list-items hidden"></ul>
     </div>
 
-    <!-- <script>
-
-        let userId = "{{ .UserID }}";
-        console.log("userId, userId", userId);
-        // WebSocket connection
-        const ws = new WebSocket(`ws://localhost:8080/ws/contacts?user_id=${userId}`);
-
-        ws.onopen = () => {
-            console.log("WebSocket connection established.");
-        };
-
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-
-            if (data.type === "contact_request_update") {
-                const requestElement = document.querySelector(`[data-request-id="${data.id}"]`);
-
-                if (requestElement) {
-                    requestElement.remove();
-
-                    if (data.action === "accept") {
-                        const contactList = document.querySelector(".list-items");
-                        const contactItem = document.createElement("li");
-                        contactItem.classList.add("list-item", "contact-item");
-                        contactItem.innerHTML = `
-                            <p><strong>Name:</strong> ${data.sender_username}</p>
-                            <p><strong>Email:</strong> ${data.sender_email}</p>
-                        `;
-                        contactList.appendChild(contactItem);
-                    }
-                }
+    <script>
+        // Pass contacts data to JavaScript
+        const contacts = JSON.parse('{{ .ContactsJSON }}');
+        const userId = "{{ .UserID }}";
+    
+        // Search API Integration
+        document.getElementById("search").addEventListener("keyup", async function () {
+            const query = this.value.trim();
+            const searchResults = document.getElementById("search-results");
+            const contactList = document.getElementById("contact-list");
+    
+            if (!query) {
+                searchResults.classList.add("hidden");
+                return;
             }
-        };
+    
+            try {
+                const response = await fetch(`/search?q=${query}`);
+                if (!response.ok) {
+                    console.error("Search API returned an error");
+                    return;
+                }
+    
+                const users = await response.json(); // The API returns an array of users
+                console.log("Search API Response:", users);
+    
+                searchResults.innerHTML = ""; // Clear existing results
+                users.forEach(user => {
+                    const isContact = contacts.some(c => c.ContactID === user.id);
+                    const listItem = document.createElement("li");
+                    listItem.classList.add("list-item");
+    
+                    listItem.innerHTML = `
+                        <p><strong>Name:</strong> ${user.username}</p>
+                        <p><strong>Email:</strong> ${user.email}</p>
+                        <button class="action-btn ${isContact ? 'remove-btn' : 'send-request-btn'}" data-user-id="${user.id}">
+                            ${isContact ? 'Remove' : 'Send Request'}
+                        </button>
+                    `;
+    
+                    // Attach button handlers
+                    const button = listItem.querySelector("button");
+                    button.addEventListener("click", () => {
+                        if (isContact) {
+                            removeContact(user.id);
+                        } else {
+                            sendRequest(user.id);
+                        }
+                    });
+    
+                    searchResults.appendChild(listItem);
+                });
+    
+                searchResults.classList.remove("hidden");
+            } catch (error) {
+                console.error("Failed to fetch search results:", error);
+            }
+        });
+    
+        function sendRequest(userId) {
+            console.log("Sending request to user:", userId);
+            // Implement the logic to send a contact request
+        }
+    
+        function removeContact(contactId) {
+            console.log("Removing contact:", contactId);
+            // Implement the logic to remove a contact
+        }
+    </script>
+    
 
-        ws.onclose = () => {
-            console.log("WebSocket connection closed.");
-        };
-
-        ws.onerror = (error) => {
-            console.error("WebSocket error:", error);
-        };
-
-
-    </script> -->
 </body>
 </html>

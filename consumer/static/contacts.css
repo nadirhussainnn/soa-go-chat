@@ -61,10 +61,6 @@
     transition: transform 0.2s;
 }
 
-.contact-item:hover {
-    transform: scale(1.02);
-}
-
 .contact-info {
     display: flex;
     align-items: center;
@@ -129,4 +125,54 @@
     font-weight: bold;
     color: #0078d7;
     margin-bottom: 0.5rem;
+}
+
+/*  */
+
+
+.contact-list {
+    flex: 0 0 30%;
+    min-width: 250px;
+    padding-left: 30px ;
+    padding-right: 30px ;
+    overflow-y: auto;
+    height: 100%;
+    background-color: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #ccc;
+}
+
+.search-component {
+    padding: 10px;
+    background-color: #fff;
+    border-bottom: 1px solid #ccc;
+}
+
+.search-component input {
+    width: 90%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    font-size: 1rem;
+}
+
+.list-items {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.list-item {
+    padding: 15px;
+    border-bottom: 1px solid #ddd;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+
+.list-item p {
+    margin: 0;
+    font-size: 1rem;
+    color: #333;
 }

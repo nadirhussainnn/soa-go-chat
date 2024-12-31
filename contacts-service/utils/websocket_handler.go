@@ -112,6 +112,7 @@ func (h *WebSocketHandler) HandleSendContactRequest(senderID, receiverID string)
 			log.Printf("Real-time contact request sent to user %s", receiverID)
 		}
 	} else {
+		log.Print("Not online", receiverID, senderID)
 		// Notify via AMQP for later delivery
 		err := h.AMQPChannel.Publish(
 			"",
