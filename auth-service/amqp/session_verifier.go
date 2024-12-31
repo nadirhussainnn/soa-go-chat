@@ -114,6 +114,5 @@ func InitRabbitMQ(amqpURL string) (*amqp.Connection, *amqp.Channel) {
 	if err != nil {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
-
 	return conn, ch
 }

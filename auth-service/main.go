@@ -49,7 +49,7 @@ func main() {
 	sessionVerifier.ListenForSessionVerification(ch)
 
 	jwtDecoder := amqp.JWTDecoder{Secret: os.Getenv("JWT_SECRET")}
-	jwtDecoder.ListenForJWTDecode(ch)
+	jwtDecoder.ListenForJWTDecode(conn)
 
 	amqp.ListenForBatchDetails(ch, userRepo)
 

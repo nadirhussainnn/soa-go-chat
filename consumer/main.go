@@ -128,6 +128,7 @@ func main() {
 	})
 
 	http.Handle("/contacts", authMiddleware.RequireAuth(http.HandlerFunc(auth.HandleContacts)))
+	http.Handle("/requests", authMiddleware.RequireAuth(http.HandlerFunc(auth.HandleRequests)))
 
 	// Start the HTTP server
 	log.Println("Consumer service running on port", PORT)

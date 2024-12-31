@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go Chat - Requests</title>
+    <link rel="stylesheet" href="/static/index.css">
+    <link rel="stylesheet" href="/static/dashboard.css">
+    <style>
+        .list-item {
+            padding: 15px;
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .action-buttons {
+            margin-top: 10px;
+        }
+        .accept-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            margin-right: 5px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .reject-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .accept-btn:hover {
+            background-color: #218838;
+        }
+        .reject-btn:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <!-- Include Header -->
+    {{ template "requests_header.html" }}
+
+    <div class="contact-chat-container">
+        <div class="contact-list">
+            <ul id="request-list" class="list-items">
+                <!-- Check if there are any requests -->
+                {{ if .Requests }}
+                    {{ range .Requests }}
+                    <li class="list-item request-item">
+                        <p><strong>Name:</strong> {{ .Details.Username }}</p>
+                        <p><strong>Email:</strong> {{ .Details.Email }}</p>
+                        <p><strong>Requested On:</strong> {{ .RequestedOn }}</p>
+                        <div class="action-buttons">
+                            <form method="POST" action="/requests/accept">
+                                <input type="hidden" name="request_id" value="{{ .ID }}">
+                                <button type="submit" class="accept-btn">Accept</button>
+                            </form>
+                            <form method="POST" action="/requests/reject">
+                                <input type="hidden" name="request_id" value="{{ .ID }}">
+                                <button type="submit" class="reject-btn">Reject</button>
+                            </form>
+                        </div>
+                    </li>
+                    {{ end }}
+                {{ else }}
+                    <p>No pending contact requests.</p>
+                {{ end }}
+            </ul>
+        </div>
+    </div>
+    
+</body>
+</html>

@@ -46,10 +46,10 @@ func DecodeJWT(amqpChannel *amqp.Channel, sessionToken string) (*DecodeJWTRespon
 
 	// Publish the request to the auth-service
 	err := amqpChannel.Publish(
-		"",              // Exchange
-		AUTH_JWT_DECODE, // Routing key
-		false,           // Mandatory
-		false,           // Immediate
+		"",                       // Exchange
+		AUTH_JWT_DECODE_CONTACTS, // Routing key
+		false,                    // Mandatory
+		false,                    // Immediate
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        requestBytes,
@@ -62,13 +62,13 @@ func DecodeJWT(amqpChannel *amqp.Channel, sessionToken string) (*DecodeJWTRespon
 	log.Print("Published JWT decode request")
 	// Consume the response from the auth-service
 	msgs, err := amqpChannel.Consume(
-		AUTH_JWT_DECODE_RESPONSE, // Queue
-		"",                       // Consumer tag
-		true,                     // Auto-acknowledge
-		false,                    // Exclusive
-		false,                    // No-local
-		false,                    // No-wait
-		nil,                      // Args
+		AUTH_JWT_DECODE_RESPONSE_CONTACTS, // Queue
+		"",                                // Consumer tag
+		true,                              // Auto-acknowledge
+		false,                             // Exclusive
+		false,                             // No-local
+		false,                             // No-wait
+		nil,                               // Args
 	)
 	if err != nil {
 		log.Printf("Failed to consume JWT decode response: %v", err)
@@ -143,6 +143,7 @@ func GetUsersDetails(channel *amqp.Channel, userIDs []string) (map[string]*model
 		return nil, err
 	}
 
+	log.Print("Received msgs from queue", msgs)
 	// Wait for a response
 	for msg := range msgs {
 		var response BatchDetailsResponse
@@ -156,74 +157,3 @@ func GetUsersDetails(channel *amqp.Channel, userIDs []string) (map[string]*model
 
 	return nil, errors.New("no response received from auth-service")
 }
-
-// func GetUsersDetails(channel *amqp.Channel, userIDs []string) (map[string]*models.SenderDetails, error) {
-// 	// Prepare the request payload
-// 	request := map[string]interface{}{
-// 		"user_ids": userIDs,
-// 	}
-// 	payload, err := json.Marshal(request)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	log.Print("Payload: ", string(payload))
-// 	// Declare a queue for the response
-// 	responseQueue, err := channel.QueueDeclare(
-// 		"",    // Generate a unique name
-// 		false, // Durable
-// 		false, // Delete when unused
-// 		true,  // Exclusive
-// 		false, // No-wait
-// 		nil,   // Arguments
-// 	)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	// Publish the request
-// 	correlationID := uuid.New().String()
-// 	err = channel.Publish(
-// 		"",                   // Exchange
-// 		"fetch_user_details", // Routing key
-// 		false,                // Mandatory
-// 		false,                // Immediate
-// 		amqp.Publishing{
-// 			ContentType:   "application/json",
-// 			Body:          payload,
-// 			ReplyTo:       responseQueue.Name,
-// 			CorrelationId: correlationID,
-// 		},
-// 	)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	// Consume the response
-// 	messages, err := channel.Consume(
-// 		responseQueue.Name,
-// 		"",    // Consumer
-// 		true,  // Auto-acknowledge
-// 		false, // Exclusive
-// 		false, // No-local
-// 		false, // No-wait
-// 		nil,   // Args
-// 	)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	// Wait for the response
-// 	userDetailsMap := make(map[string]*models.SenderDetails)
-// 	for msg := range messages {
-// 		if msg.CorrelationId == correlationID {
-// 			err = json.Unmarshal(msg.Body, &userDetailsMap)
-// 			if err != nil {
-// 				return nil, err
-// 			}
-// 			break
-// 		}
-// 	}
-
-// 	return userDetailsMap, nil
-// }
