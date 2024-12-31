@@ -269,13 +269,86 @@ func HandleContacts(w http.ResponseWriter, r *http.Request) {
 	log.Print("Decoded contacts response", data)
 	// Pass contacts data to the template
 	tmpl := template.Must(template.ParseGlob("templates/*.html"))
-	err = tmpl.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
+	err = tmpl.ExecuteTemplate(w, "contacts.html", map[string]interface{}{
 		"Contacts": data.Contacts,
 		"UserID":   userID,
 	})
 
 	if err != nil {
 		log.Printf("[HandleLogin] Failed to render template for user %s: %v", userID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+}
+
+func HandleRequests(w http.ResponseWriter, r *http.Request) {
+	GATEWAY_URL := os.Getenv("GATEWAY_URL")
+	log.Print("Gateway URL", GATEWAY_URL)
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok || userID == "" {
+		log.Print("User ID not found in context")
+		http.Error(w, "Unauthorized: user_id is required", http.StatusUnauthorized)
+		return
+	}
+
+	cookie, err := r.Cookie("session_token")
+	if err != nil || cookie.Value == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	log.Print("Session token", cookie.Value)
+
+	// Fetch contact requests from the contacts-service
+	req, err := http.NewRequest("GET", GATEWAY_URL+"/contacts/requests/?user_id="+userID, nil)
+	if err != nil {
+		log.Printf("[HandleRequests] Failed to create request to requests-service: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	req.AddCookie(cookie)
+
+	client := &http.Client{}
+	requestsResp, err := client.Do(req)
+	if err != nil {
+		log.Printf("[HandleRequests] Failed to fetch requests for user %s: %v", userID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	defer requestsResp.Body.Close()
+
+	// Validate response status
+	if requestsResp.StatusCode != http.StatusOK {
+		log.Printf("[HandleRequests] Error from requests-service for user %s: %s", userID, requestsResp.Status)
+		http.Error(w, "Failed to fetch requests", http.StatusInternalServerError)
+		return
+	}
+
+	// Decode the response JSON directly into an array
+	var requests []struct {
+		ID          string `json:"id"`
+		RequesterID string `json:"requester_id"`
+		RequestedOn string `json:"requested_on"`
+		Details     struct {
+			Username string `json:"username"`
+			Email    string `json:"email"`
+		} `json:"requestDetails"`
+	}
+
+	err = json.NewDecoder(requestsResp.Body).Decode(&requests)
+	if err != nil {
+		log.Printf("[HandleRequests] Failed to decode requests response for user %s: %v", userID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	log.Printf("Decoded requests response for user %s: %+v", userID, requests)
+
+	// Render the requests using the `requests.html` template
+	tmpl := template.Must(template.ParseGlob("templates/*.html"))
+	err = tmpl.ExecuteTemplate(w, "requests.html", map[string]interface{}{
+		"Requests": requests,
+		"UserID":   userID,
+	})
+	if err != nil {
+		log.Printf("[HandleRequests] Failed to render template for user %s: %v", userID, err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 }

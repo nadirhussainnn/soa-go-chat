@@ -3,27 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contacts</title>
+    <title>Go Chat - Dashboard</title>
     <link rel="stylesheet" href="/static/index.css">
+    <link rel="stylesheet" href="/static/dashboard.css">
     <style>
-        .contact-item {
-            padding: 10px;
+        .list-item {
+            padding: 15px;
             border: 1px solid #ddd;
             margin-bottom: 10px;
             border-radius: 5px;
             background-color: #f9f9f9;
         }
+        .hidden {
+            display: none;
+        }
+        .request-item {
+            display: flex;
+            flex-direction: column;
+            align-items: start;
+        }
+        .action-buttons {
+            margin-top: 10px;
+        }
+        .accept-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            margin-right: 5px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .reject-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .accept-btn:hover {
+            background-color: #218838;
+        }
+        .reject-btn:hover {
+            background-color: #c82333;
+        }
+        .filter-btn.active {
+            font-weight: bold;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
-    <h1>Contacts</h1>
-    <ul>
-        {{ range .Contacts }}
-        <li class="contact-item">
-            <p><strong>Name:</strong> {{ .Details.Username }}</p>
-            <p><strong>Email:</strong> {{ .Details.Email }}</p>
-        </li>
-        {{ end }}
-    </ul>
+    <!-- Include Header -->
+    {{ template "contacts_header.html" }}
+
+    <!-- Main Content -->
+    <div class="contact-chat-container">
+        <!-- Contact List -->
+        <div class="contact-list">
+            <div class="search-component">
+                <input type="text" id="search" placeholder="Search...">
+            </div>
+            <ul id="contact-list" class="list-items">
+                <!-- Contacts List -->
+                {{ range .Contacts }}
+                <li class="list-item contact-item">
+                    <p><strong>Name:</strong> {{ .Details.Username }}</p>
+                    <p><strong>Email:</strong> {{ .Details.Email }}</p>
+                </li>
+                {{ end }}
+            </ul>
+        </div>
+
+       
+    </div>
+
+    <!-- <script>
+
+        let userId = "{{ .UserID }}";
+        console.log("userId, userId", userId);
+        // WebSocket connection
+        const ws = new WebSocket(`ws://localhost:8080/ws/contacts?user_id=${userId}`);
+
+        ws.onopen = () => {
+            console.log("WebSocket connection established.");
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === "contact_request_update") {
+                const requestElement = document.querySelector(`[data-request-id="${data.id}"]`);
+
+                if (requestElement) {
+                    requestElement.remove();
+
+                    if (data.action === "accept") {
+                        const contactList = document.querySelector(".list-items");
+                        const contactItem = document.createElement("li");
+                        contactItem.classList.add("list-item", "contact-item");
+                        contactItem.innerHTML = `
+                            <p><strong>Name:</strong> ${data.sender_username}</p>
+                            <p><strong>Email:</strong> ${data.sender_email}</p>
+                        `;
+                        contactList.appendChild(contactItem);
+                    }
+                }
+            }
+        };
+
+        ws.onclose = () => {
+            console.log("WebSocket connection closed.");
+        };
+
+        ws.onerror = (error) => {
+            console.error("WebSocket error:", error);
+        };
+
+
+    </script> -->
 </body>
 </html>

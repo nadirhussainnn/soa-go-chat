@@ -42,6 +42,7 @@ func (h *ContactsHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
 	}
 	defer newChannel.Close()
 
+	log.Print("fetching contacts of UserID", userID)
 	// Fetch contacts for the given user
 	contacts, err := h.Repo.GetContactsByUserID(userID)
 	if err != nil {
@@ -49,6 +50,7 @@ func (h *ContactsHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to fetch contacts", http.StatusInternalServerError)
 		return
 	}
+	log.Print("fetched contacts", contacts)
 	// Collect all user IDs for batch fetching details
 	userIDs := []string{}
 	for _, contact := range contacts {
@@ -183,7 +185,7 @@ func (h *ContactsHandler) FetchPendingRequests(w http.ResponseWriter, r *http.Re
 		}
 		requests[i].CreatedAtFormatted = req.CreatedAt.Format("2 Jan, 2006")
 	}
-
+	log.Print("Received request for requests", requests)
 	// Send response with pending requests only
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(requests); err != nil {

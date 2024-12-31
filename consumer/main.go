@@ -1,6 +1,8 @@
 package main
 
 import (
+	"consumer/amqp"
+
 	auth "consumer/handlers"
 	"consumer/middleware"
 	"consumer/utils"
@@ -8,82 +10,21 @@ import (
 	"log"
 	"net/http"
 	"os"
-
-	"github.com/streadway/amqp"
 )
-
-var (
-	PORT, AMQP_URL string
-	conn           *amqp.Connection
-	ch             *amqp.Channel
-)
-
-// StartConsumer initializes the RabbitMQ consumer
-func StartConsumer() {
-	// Declare the queue
-	q, err := ch.QueueDeclare(
-		utils.MESSAGES, // Queue name
-		false,          // Durable
-		false,          // Delete when unused
-		false,          // Exclusive
-		false,          // No-wait
-		nil,            // Arguments
-	)
-	if err != nil {
-		log.Fatalf("Failed to declare a queue: %v", err)
-	}
-
-	// Consume messages
-	msgs, err := ch.Consume(
-		q.Name, // Queue name
-		"",     // Consumer
-		true,   // Auto-acknowledge
-		false,  // Exclusive
-		false,  // No-local
-		false,  // No-wait
-		nil,    // Args
-	)
-	if err != nil {
-		log.Fatalf("Failed to register a consumer: %v", err)
-	}
-
-	// Process messages in a goroutine
-	go func() {
-		for d := range msgs {
-			log.Printf("Received message: %s", d.Body)
-			// Add your processing logic here
-		}
-	}()
-	log.Println("Consumer is running and listening for messages")
-}
 
 func main() {
 
 	utils.LoadEnvs()
 
-	PORT = os.Getenv("PORT")
-	AMQP_URL = os.Getenv("AMQP_URL")
+	PORT := os.Getenv("PORT")
+	AMQP_URL := os.Getenv("AMQP_URL")
 
-	// Connect to RabbitMQ
-	conn, err := amqp.Dial(AMQP_URL)
-	if err != nil {
-		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
-	}
+	// Set up RabbitMQ
+	conn, _ := amqp.InitRabbitMQ(AMQP_URL) // Connection setup
 	defer conn.Close()
 
-	// Open a channel
-	ch, err = conn.Channel()
-	if err != nil {
-		log.Fatalf("Failed to open a channel: %v", err)
-	}
-	defer ch.Close()
-
-	go StartConsumer()
-
-	// Use the RabbitMQ channel in middleware for session validation
 	authMiddleware := &middleware.AuthMiddleware{
-		AMQPChannel: ch, // Correctly pass the RabbitMQ channel
-
+		AMQPConn: conn,
 	}
 
 	fs := http.FileServer(http.Dir("./static"))
@@ -127,7 +68,9 @@ func main() {
 		tmpl.ExecuteTemplate(w, "terms.html", nil)
 	})
 
+	http.Handle("/dashboard", authMiddleware.RequireAuth(http.HandlerFunc(auth.HandleContacts)))
 	http.Handle("/contacts", authMiddleware.RequireAuth(http.HandlerFunc(auth.HandleContacts)))
+	http.Handle("/requests", authMiddleware.RequireAuth(http.HandlerFunc(auth.HandleRequests)))
 
 	// Start the HTTP server
 	log.Println("Consumer service running on port", PORT)
