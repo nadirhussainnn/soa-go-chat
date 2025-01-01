@@ -1,0 +1,45 @@
+<style>
+    .default-chat-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100%; /* Make it occupy the full height of the chat container */
+        text-align: center;
+        color: #555; /* Neutral color for text */
+    }
+
+    .default-chat-icon {
+        width: 150px;
+        height: 150px;
+        margin-bottom: 20px;
+        opacity: 0.8;
+    }
+
+    #default-chat-view h2 {
+        font-size: 24px;
+        color: #333; /* Slightly darker for emphasis */
+    }
+
+    #default-chat-view p {
+        font-size: 16px;
+        color: #777;
+    }
+    #default-chat-view{
+        text-align: center;
+        align-items: center;
+        justify-content: center;
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 10px;
+        height: 100%;
+    }
+</style>
+
+<div id="default-chat-view">
+    <div class="default-chat-container">
+        <img src="/static/images/no_chats.png" alt="No Chat Selected" class="default-chat-icon">
+        <h2>Welcome to Go Chat</h2>
+        <p>Select a contact to start a conversation.</p>
+    </div>
+</div>

@@ -7,59 +7,40 @@
     <link rel="stylesheet" href="/static/index.css">
     <link rel="stylesheet" href="/static/dashboard.css">
     <link rel="stylesheet" href="/static/chat.css">
+    <link rel="stylesheet" href="/static/snackbar.css">
+
     <style>
         .list-item {
-            padding: 15px;
-            border: 1px solid #ddd;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            background-color: #f9f9f9;
-        }
-        .hidden {
-            display: none;
-        }
-        .request-item {
-            display: flex;
-            flex-direction: column;
-            align-items: start;
-        }
-        .action-buttons {
-            margin-top: 10px;
-        }
-        .accept-btn {
-            background-color: #28a745;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            margin-right: 5px;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-        .reject-btn {
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-        .accept-btn:hover {
-            background-color: #218838;
-        }
-        .reject-btn:hover {
-            background-color: #c82333;
-        }
-        .filter-btn.active {
-            font-weight: bold;
-            text-decoration: underline;
-        }
+    padding: 15px;
+    border: 1px solid #ddd;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.list-item:hover{
+    border-color: #0078d7;
+}
+.hidden {
+    display: none;
+}
+
+.default-chat-icon {
+    max-width: 70px !important;
+    max-height: 70px !important;
+}
+
     </style>
 </head>
 <body>
     <!-- Include Header -->
     {{ template "dashboard_header.html" }}
 
-  
+    <div id="snackbar">Some text some message..</div>
+
     <div class="contact-chat-container">
         <!-- Contact List -->
         <div class="contact-list">
@@ -70,9 +51,14 @@
                 <!-- Contacts List -->
                 {{ range .Contacts }}
                 <li class="list-item contact-item" data-contact-id="{{ .Details.UserID }}" data-username="{{ .Details.Username }}" data-email="{{ .Details.Email }}">
-                    <p><strong>Name:</strong> {{ .Details.Username }}</p>
-                    <p><strong>Email:</strong> {{ .Details.Email }}</p>
-                    <p><strong>Id:</strong> {{ .Details.UserID }}</p>
+
+                    <img src="/static/images/avatar.png" alt="No Chat Selected" class="default-chat-icon">
+
+                    <div>
+                        <p style="color: #0078d7; font-size: 1.2rem; text-transform: capitalize; padding: 0;"> {{ .Details.Username }}</p>
+                        <p>{{ .Details.Email }}</p>
+                    </div>
+
                 </li>
                 {{ end }}
             </ul>
@@ -80,7 +66,7 @@
     
         <!-- Chat Container -->
         <div class="chat-container" id="chat-container">
-            <!-- The chat.html template will be dynamically loaded here -->
+            {{ template "no_chat.html" }}
         </div>
     </div>
 
@@ -121,11 +107,12 @@
     
             // Clear previous chat content
             chatContainer.innerHTML = "";
-    
+            // <div class="profile-pic"></div>    
             // Add new chat template with dynamic data
             chatContainer.innerHTML = `
                 <header class="chat-header">
-                    <div class="profile-pic"></div>
+
+                    <img src="/static/images/avatar.png" alt="No Chat Selected" class="default-chat-icon">
                     <div class="username">${username}</div>
                 </header>
                 <main class="chat-messages" id="chat-messages">
@@ -160,8 +147,10 @@
     
             ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
+                console.log(data)
                 if (data.type === SOCKET_EVENTS.NEW_MESSAGE_RECEIVED) {
-                    const time = new Date().toLocaleTimeString();
+                    if (contactId === data.message.SenderID){
+                        const time = new Date().toLocaleTimeString();
                     const messageBubble = document.createElement("div");
                     messageBubble.classList.add("message-bubble", "received");
                     messageBubble.innerHTML = `
@@ -170,6 +159,11 @@
                     `;
                     chatMessages.appendChild(messageBubble);
                     chatMessages.scrollTop = chatMessages.scrollHeight;
+                    }
+                    else{
+                        showSnackbar("New message received")
+
+                    }
                 }
             };
     
