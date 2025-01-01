@@ -9,6 +9,12 @@ import (
 	"os"
 )
 
+type User struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+}
+
 func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
@@ -85,11 +91,10 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 			Details   struct {
 				Username string `json:"username"`
 				Email    string `json:"email"`
+				UserID   string `json:"user_id"`
 			} `json:"contactDetails"`
 		} `json:"contacts"`
 	}
-
-	log.Print("Decoding contacts response", contactsResp.Body)
 
 	err = json.NewDecoder(contactsResp.Body).Decode(&data)
 	if err != nil {
@@ -97,7 +102,6 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	log.Print("Decoded contacts response", data)
 	// Pass contacts data to the template
 	tmpl := template.Must(template.ParseGlob("templates/*.html"))
 	err = tmpl.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
@@ -411,11 +415,10 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 			Details   struct {
 				Username string `json:"username"`
 				Email    string `json:"email"`
+				UserID   string `json:"user_id"`
 			} `json:"contactDetails"`
 		} `json:"contacts"`
 	}
-
-	log.Print("Decoding contacts response", contactsResp.Body)
 
 	err = json.NewDecoder(contactsResp.Body).Decode(&data)
 	if err != nil {
@@ -423,7 +426,7 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	log.Print("Decoded contacts response", data)
+
 	// Pass contacts data to the template
 	tmpl := template.Must(template.ParseGlob("templates/*.html"))
 	err = tmpl.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
@@ -435,12 +438,6 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[HandleLogin] Failed to render template for user %s: %v", userID, err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
-}
-
-type User struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
 }
 
 func HandleSearch(w http.ResponseWriter, r *http.Request) {

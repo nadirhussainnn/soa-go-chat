@@ -177,12 +177,12 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/auth/{path:.*}", proxyHandler(AUTH_SERVICE_URL, "/auth")).Methods("POST", "GET")
 	r.HandleFunc("/contacts/{path:.*}", proxyHandler(CONTACTS_SERVICE_URL, "/contacts")).Methods("POST", "GET", "DELETE")
-	r.HandleFunc("/message/{path:.*}", proxyHandler(MESSAGING_SERVICE_URL, "/message")).Methods("POST", "GET")
+	r.HandleFunc("/messages/{path:.*}", proxyHandler(MESSAGING_SERVICE_URL, "/messages")).Methods("POST", "GET")
 
 	// WebSocket Proxy
 	serviceURLs := map[string]string{
-		"contacts":  CONTACTS_SERVICE_WS_URL,
-		"messaging": MESSAGING_SERVICE_WS_URL,
+		"contacts": CONTACTS_SERVICE_WS_URL,
+		"messages": MESSAGING_SERVICE_WS_URL,
 	}
 
 	r.HandleFunc("/ws/{path}", wsProxyHandler(serviceURLs)).Methods("GET", "POST")

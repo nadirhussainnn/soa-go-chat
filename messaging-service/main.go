@@ -33,27 +33,27 @@ func main() {
 	AMQP_URL := os.Getenv("AMQP_URL")
 
 	db := initDB()
-	repo := repository.NewMessagesRepository(db)
+	repo := repository.NewContactsRepository(db)
 
 	// Set up RabbitMQ
-	conn, ch := amqp.InitRabbitMQ(AMQP_URL)
+	conn, ch := amqp.InitRabbitMQ(AMQP_URL) // Connection setup
 	defer conn.Close()
-	defer ch.Close()
 
 	// Initialize WebSocket handler
-	webSocketHandler := utils.NewWebSocketHandler(repo, ch)
+	webSocketHandler := utils.NewWebSocketHandler(repo, ch) // Pass nil as channel is now dynamic
 
-	handler := &handlers.MessageHandler{Repo: repo}
+	handler := &handlers.MessageHandler{
+		Repo:             repo,
+		WebSocketHandler: webSocketHandler,
+		AMQPConn:         conn, // Pass the RabbitMQ connection
+	}
 
-	// Use the RabbitMQ channel in middleware for session validation
 	authMiddleware := &middleware.AuthMiddleware{
-		AMQPChannel: ch, // Correctly pass the RabbitMQ channel
-
+		AMQPConn: conn,
 	}
 
 	http.HandleFunc("/ws", webSocketHandler.HandleWebSocket)
-
-	http.Handle("/", authMiddleware.RequireAuth(http.HandlerFunc(handler.GetMessages)))
+	http.Handle("/messages/", authMiddleware.RequireAuth(http.HandlerFunc(handler.FetchMessages)))
 
 	log.Println("Messaging service running on port", PORT)
 	log.Fatal(http.ListenAndServe(":"+PORT, nil))

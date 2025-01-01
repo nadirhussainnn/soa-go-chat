@@ -1,13 +1,11 @@
 package handlers
 
 import (
-	"bytes"
 	"contacts-service/repository"
 	"contacts-service/utils"
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/google/uuid"
 	"github.com/streadway/amqp"
@@ -72,6 +70,7 @@ func (h *ContactsHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
 	for i, contact := range contacts {
 		if details, exists := userDetailsMap[contact.ContactID.String()]; exists {
 			contacts[i].ContactDetails = details
+			contacts[i].ContactDetails.UserID = contact.ContactID.String()
 		}
 	}
 
@@ -90,45 +89,6 @@ func (h *ContactsHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
-}
-
-func HandleRequestAction(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
-	}
-
-	GATEWAY_URL := os.Getenv("GATEWAY_URL")
-
-	requestID := r.FormValue("request_id")
-	action := r.FormValue("action")
-	if requestID == "" || action == "" {
-		http.Error(w, "Invalid request parameters", http.StatusBadRequest)
-		return
-	}
-
-	// Forward the request to contacts-service
-	payload := map[string]string{
-		"request_id": requestID,
-		"action":     action,
-	}
-	jsonPayload, _ := json.Marshal(payload)
-
-	resp, err := http.Post(GATEWAY_URL+"/contacts/request/action", "application/json", bytes.NewBuffer(jsonPayload))
-	if err != nil {
-		log.Printf("Failed to forward request to contacts-service: %v", err)
-		http.Error(w, "Failed to process request", http.StatusInternalServerError)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		http.Error(w, "Failed to process request", resp.StatusCode)
-		return
-	}
-
-	// Redirect back to the dashboard
-	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 }
 
 func (h *ContactsHandler) FetchPendingRequests(w http.ResponseWriter, r *http.Request) {

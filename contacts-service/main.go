@@ -57,7 +57,6 @@ func main() {
 	http.Handle("/", authMiddleware.RequireAuth(http.HandlerFunc(handler.GetContacts)))
 	http.Handle("/requests/", authMiddleware.RequireAuth(http.HandlerFunc(handler.FetchPendingRequests)))
 
-	http.HandleFunc("/contacts/request/action", handlers.HandleRequestAction)
 	log.Println("Contacts service running on port", PORT)
 	log.Fatal(http.ListenAndServe(":"+PORT, nil))
 }

@@ -4,12 +4,19 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"messaging-service/models"
 
+	"github.com/google/uuid"
 	"github.com/streadway/amqp"
 )
 
 type DecodeJWTRequest struct {
 	SessionToken string `json:"session_token"`
+}
+
+type UserDetails struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
 }
 
 type DecodeJWTResponse struct {
@@ -18,6 +25,14 @@ type DecodeJWTResponse struct {
 	Email    string `json:"email"`
 	Username string `json:"username"`
 	Error    string `json:"error,omitempty"`
+}
+
+type BatchDetailsRequest struct {
+	UserIDs []string `json:"user_ids"`
+}
+
+type BatchDetailsResponse struct {
+	UserDetails map[string]*models.SenderDetails `json:"user_details"`
 }
 
 // DecodeJWT sends the JWT to the auth-service via AMQP and retrieves user details
@@ -32,10 +47,10 @@ func DecodeJWT(amqpChannel *amqp.Channel, sessionToken string) (*DecodeJWTRespon
 
 	// Publish the request to the auth-service
 	err := amqpChannel.Publish(
-		"",              // Exchange
-		AUTH_JWT_DECODE, // Routing key
-		false,           // Mandatory
-		false,           // Immediate
+		"",                        // Exchange
+		AUTH_JWT_DECODE_MESSAGING, // Routing key
+		false,                     // Mandatory
+		false,                     // Immediate
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        requestBytes,
@@ -45,16 +60,16 @@ func DecodeJWT(amqpChannel *amqp.Channel, sessionToken string) (*DecodeJWTRespon
 		log.Printf("Failed to publish JWT decode request: %v", err)
 		return nil, err
 	}
-
+	log.Print("Published JWT decode request")
 	// Consume the response from the auth-service
 	msgs, err := amqpChannel.Consume(
-		AUTH_JWT_DECODE_RESPONSE, // Queue
-		"",                       // Consumer tag
-		true,                     // Auto-acknowledge
-		false,                    // Exclusive
-		false,                    // No-local
-		false,                    // No-wait
-		nil,                      // Args
+		AUTH_JWT_DECODE_RESPONSE_MESSAGING, // Queue
+		"",                                 // Consumer tag
+		true,                               // Auto-acknowledge
+		false,                              // Exclusive
+		false,                              // No-local
+		false,                              // No-wait
+		nil,                                // Args
 	)
 	if err != nil {
 		log.Printf("Failed to consume JWT decode response: %v", err)
@@ -68,13 +83,81 @@ func DecodeJWT(amqpChannel *amqp.Channel, sessionToken string) (*DecodeJWTRespon
 			log.Printf("Failed to unmarshal JWT decode response: %v", err)
 			continue
 		}
+		log.Print("Message: ", d.Body)
 		return &response, nil
 	}
 
 	return nil, errors.New("no response from auth-service")
 }
 
-// DecodeJWTForService allows services to directly fetch user details from JWT
-func DecodeJWTForService(amqpChannel *amqp.Channel, sessionToken string) (*DecodeJWTResponse, error) {
-	return DecodeJWT(amqpChannel, sessionToken)
+// GetUsersDetails sends a batch request to auth-service and retrieves user details
+func GetUsersDetails(channel *amqp.Channel, userIDs []string) (map[string]*models.SenderDetails, error) {
+	// Prepare the request payload
+	request := BatchDetailsRequest{UserIDs: userIDs}
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return nil, err
+	}
+
+	// Declare the response queue (static, pre-defined)
+	_, err = channel.QueueDeclare(
+		AUTH_BATCH_DETAILS_RESPONSE, // Queue name (use a constant)
+		false,                       // Durable
+		false,                       // Delete when unused
+		false,                       // Exclusive
+		false,                       // No-wait
+		nil,                         // Arguments
+	)
+	if err != nil {
+		log.Printf("Failed to declare response queue: %v", err)
+		return nil, err
+	}
+
+	correlationID := uuid.New().String() // Generate a unique CorrelationId
+
+	// Publish the request to the request queue
+	err = channel.Publish(
+		"",                         // Exchange
+		AUTH_BATCH_DETAILS_REQUEST, // Routing key (request queue)
+		false,                      // Mandatory
+		false,                      // Immediate
+		amqp.Publishing{
+			ContentType:   "application/json",
+			Body:          payload,
+			CorrelationId: correlationID,
+		},
+	)
+	if err != nil {
+		log.Printf("Failed to publish batch request: %v", err)
+		return nil, err
+	}
+	log.Print("Sent request with coooorr", correlationID)
+	// Consume messages from the response queue
+	msgs, err := channel.Consume(
+		AUTH_BATCH_DETAILS_RESPONSE, // Queue name (response queue)
+		"",                          // Consumer tag
+		true,                        // Auto-acknowledge
+		false,                       // Exclusive
+		false,                       // No-local
+		false,                       // No-wait
+		nil,                         // Args
+	)
+	if err != nil {
+		log.Printf("Failed to consume from response queue: %v", err)
+		return nil, err
+	}
+
+	log.Print("Received msgs from queue", msgs)
+	// Wait for a response
+	for msg := range msgs {
+		var response BatchDetailsResponse
+		err = json.Unmarshal(msg.Body, &response)
+		if err != nil {
+			log.Printf("Failed to unmarshal response: %v", err)
+			continue
+		}
+		return response.UserDetails, nil
+	}
+
+	return nil, errors.New("no response received from auth-service")
 }
