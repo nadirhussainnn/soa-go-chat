@@ -4,15 +4,109 @@ import (
 	"auth-service/models"
 	"auth-service/repository"
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type Handler struct {
-	UserRepo repository.UserRepository
+	UserRepo    repository.UserRepository
+	SessionRepo repository.SessionRepository
+}
+
+// LoginHandler handles user login
+func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	JWT_SECRET := []byte(os.Getenv("JWT_SECRET"))
+
+	var credentials struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	// Fetch the user
+	user, err := h.UserRepo.GetUserByUsername(credentials.Username)
+	if err != nil {
+		http.Error(w, "Invalid username", http.StatusUnauthorized)
+		return
+	}
+	// Compare passwords
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(credentials.Password)); err != nil {
+		http.Error(w, "Invalid password", http.StatusUnauthorized)
+		return
+	}
+
+	// Generate JWT
+	session_id := uuid.New()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"id":         user.ID,
+		"username":   user.Username,
+		"email":      user.Email,
+		"session_id": session_id,
+	})
+	tokenString, err := token.SignedString(JWT_SECRET)
+	if err != nil {
+		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+		return
+	}
+	// Create a session
+	session := &models.Session{
+		ID:     session_id,
+		UserID: user.ID,
+		Token:  tokenString,
+	}
+	if err := h.SessionRepo.CreateSession(session); err != nil {
+		http.Error(w, "Failed to create session", http.StatusInternalServerError)
+		return
+	}
+	// Set the session cookie
+	new_cookie := &http.Cookie{
+		Name:    "session_token",
+		Value:   tokenString,
+		Expires: time.Now().Add(120 * time.Minute),
+		// HttpOnly: true,
+		Path: "/",
+	}
+	http.SetCookie(w, new_cookie)
+	w.WriteHeader(http.StatusOK)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"user_id": session.UserID.String(), "session_token": tokenString})
+}
+
+func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("session_token")
+	if err != nil {
+		http.Error(w, "No session found", http.StatusUnauthorized)
+		return
+	}
+
+	log.Print("Cookie: ", cookie.Value)
+	// Delete the session
+	if err := h.SessionRepo.DeleteSession(cookie.Value); err != nil {
+		http.Error(w, "Failed to delete session", http.StatusInternalServerError)
+		return
+	}
+
+	// Clear the cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:   "session_token",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1, // Expire immediately
+	})
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Logged out successfully"))
 }
 
 // RegisterHandler handles user registration
@@ -33,55 +127,12 @@ func (h *Handler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Save the user
 	if err := h.UserRepo.CreateUser(&user); err != nil {
-		http.Error(w, "Failed to create user", http.StatusInternalServerError)
+		http.Error(w, "User already exists", http.StatusConflict)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("User registered successfully"))
-}
-
-// LoginHandler handles user login
-func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
-
-	JWT_SECRET := []byte(os.Getenv("JWT_SECRET"))
-
-	var credentials struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
-		return
-	}
-
-	// Fetch the user
-	user, err := h.UserRepo.GetUserByUsername(credentials.Username)
-	if err != nil {
-		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
-		return
-	}
-
-	// Compare passwords
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(credentials.Password)); err != nil {
-		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
-		return
-	}
-
-	// Generate JWT
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username": user.Username,
-		"email":    user.Email,
-	})
-	tokenString, err := token.SignedString(JWT_SECRET)
-	if err != nil {
-		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
 }
 
 // ForgotPasswordHandler handles password reset requests
@@ -119,4 +170,48 @@ func (h *Handler) ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) 
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Password updated successfully"))
+}
+
+func (h *Handler) SearchContacts(w http.ResponseWriter, r *http.Request) {
+
+	query := r.URL.Query().Get("q") // Get the search query from the request
+
+	if query == "" {
+		http.Error(w, "Search query is required", http.StatusBadRequest)
+		return
+	}
+
+	contacts, err := h.UserRepo.SearchUser(query)
+	if err != nil {
+		http.Error(w, "Failed to search Users", http.StatusInternalServerError)
+		return
+	}
+
+	// Send the matching contacts as JSON
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(contacts)
+}
+
+// GetUserDetailsHandler fetches user details by user ID
+func (h *Handler) GetUserDetailsHandler(w http.ResponseWriter, r *http.Request) {
+	userID := r.URL.Query().Get("user_id")
+	if userID == "" {
+		http.Error(w, "user_id is required", http.StatusBadRequest)
+		return
+	}
+
+	user, err := h.UserRepo.GetUserByID(userID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	response := map[string]string{
+		"id":       user.ID.String(),
+		"username": user.Username,
+		"email":    user.Email,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"auth-service/amqp"
 	"auth-service/handlers"
 	"auth-service/models"
 	"auth-service/repository"
@@ -23,7 +24,7 @@ func initDB() *gorm.DB {
 	}
 
 	// Migrate the schema
-	db.AutoMigrate(&models.User{}, &models.Contact{}, &models.ContactRequest{})
+	db.AutoMigrate(&models.User{}, &models.Session{})
 	return db
 }
 
@@ -33,23 +34,34 @@ func main() {
 
 	PORT = os.Getenv("PORT")
 	DB_NAME = os.Getenv("DB_NAME")
+	AMQP_URL := os.Getenv("AMQP_URL")
 
 	db := initDB()
 	userRepo := repository.NewUserRepository(db)
-	contactRepo := repository.NewContactRepository(db)
+	sessionRepo := repository.NewSessionRepository(db)
 
-	handler := &handlers.Handler{UserRepo: userRepo}
-	contactHandler := &handlers.ContactHandler{ContactRepo: contactRepo}
+	// Set up RabbitMQ
+	conn, ch := amqp.InitRabbitMQ(AMQP_URL)
+	defer conn.Close()
+	defer ch.Close()
+
+	sessionVerifier := amqp.SessionVerifier{SessionRepo: sessionRepo}
+	sessionVerifier.ListenForSessionVerification(ch)
+
+	jwtDecoder := amqp.JWTDecoder{Secret: os.Getenv("JWT_SECRET")}
+	jwtDecoder.ListenForJWTDecode(conn)
+
+	amqp.ListenForBatchDetails(ch, userRepo)
+
+	handler := &handlers.Handler{UserRepo: userRepo, SessionRepo: sessionRepo}
 
 	http.HandleFunc("/register", handler.RegisterHandler)
 	http.HandleFunc("/login", handler.LoginHandler)
 	http.HandleFunc("/forgot-password", handler.ForgotPasswordHandler)
-
-	http.HandleFunc("/contacts/available", contactHandler.FetchAvailableContacts)
-	http.HandleFunc("/contacts/my", contactHandler.FetchUserContacts)
-	http.HandleFunc("/contacts/search", contactHandler.SearchContacts)
-	http.HandleFunc("/contacts/request/{id}", contactHandler.SendContactRequest) // Use dynamic segment
-	http.HandleFunc("/contacts/remove/{id}", contactHandler.RemoveContact)       // Use dynamic segment
+	http.HandleFunc("/logout", handler.LogoutHandler)
+	// http.Handle("/search", authMiddleware.RequireAuth(http.HandlerFunc(handler.SearchContacts)))
+	http.HandleFunc("/search", handler.SearchContacts)
+	http.HandleFunc("/details", handler.GetUserDetailsHandler)
 
 	// // Example protected route
 	// http.Handle("/protected", middleware.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

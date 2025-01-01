@@ -3,33 +3,111 @@ package auth
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
 )
 
-// HandleLogin processes login requests
 func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 	GATEWAY_URL := os.Getenv("GATEWAY_URL")
+
 	// Send data to Authentication Service
 	payload := map[string]string{"username": username, "password": password}
 	jsonPayload, _ := json.Marshal(payload)
 
 	resp, err := http.Post(GATEWAY_URL+"/auth/login", "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		log.Printf("Error communicating with Authentication Service: %v", err)
+		log.Printf("[HandleLogin] Error communicating with Authentication Service: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
-		http.Redirect(w, r, "/contacts", http.StatusSeeOther)
-	} else {
+	var user struct {
+		UserID       string `json:"user_id"`
+		SessionToken string `json:"session_token"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&user)
+	if err != nil {
+		log.Printf("[HandleLogin] Failed to decode auth-service response: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+	log.Print("Logged in user", user)
+	// Forward cookies from auth-service to the browser
+	for _, cookie := range resp.Cookies() {
+		http.SetCookie(w, cookie)
+	}
+
+	// Fetch only contacts from the contacts-service
+	req, err := http.NewRequest("GET", GATEWAY_URL+"/contacts/?user_id="+user.UserID, nil)
+	if err != nil {
+		log.Printf("[HandleLogin] Failed to create request to contacts-service: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	req.AddCookie(&http.Cookie{
+		Name:  "session_token",
+		Value: user.SessionToken,
+		Path:  "/",
+	})
+
+	client := &http.Client{}
+	contactsResp, err := client.Do(req)
+	if err != nil {
+		log.Printf("[HandleLogin] Failed to fetch contacts for user %s: %v", user.UserID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	defer contactsResp.Body.Close()
+
+	log.Print("Contacts response", contactsResp.Body)
+	if contactsResp.StatusCode != http.StatusOK {
+		log.Printf("[HandleLogin] Error from contacts-service for user %s: %s", user.UserID, contactsResp.Status)
+		http.Error(w, "Failed to fetch contacts", http.StatusInternalServerError)
+		return
+	}
+
+	var data struct {
+		Contacts []struct {
+			ID        string `json:"id"`
+			UserID    string `json:"user_id"`
+			ContactID string `json:"contact_id"`
+			CreatedAt string `json:"created_at"`
+			Details   struct {
+				Username string `json:"username"`
+				Email    string `json:"email"`
+			} `json:"contactDetails"`
+		} `json:"contacts"`
+	}
+
+	log.Print("Decoding contacts response", contactsResp.Body)
+
+	err = json.NewDecoder(contactsResp.Body).Decode(&data)
+	if err != nil {
+		log.Printf("[HandleLogin] Failed to decode contacts response for user %s: %v", user.UserID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	log.Print("Decoded contacts response", data)
+	// Pass contacts data to the template
+	tmpl := template.Must(template.ParseGlob("templates/*.html"))
+	err = tmpl.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
+		"Contacts": data.Contacts,
+		"UserID":   user.UserID,
+	})
+
+	if err != nil {
+		log.Printf("[HandleLogin] Failed to render template for user %s: %v", user.UserID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 }
 
@@ -51,10 +129,52 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
+	if resp.StatusCode == http.StatusCreated {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 	} else {
 		http.Error(w, "Registration failed", http.StatusBadRequest)
+	}
+}
+
+// HandleLogin processes login requests
+func HandleLogout(w http.ResponseWriter, r *http.Request) {
+	GATEWAY_URL := os.Getenv("GATEWAY_URL")
+
+	// Forward the session cookie to the auth-service
+	client := &http.Client{}
+	req, _ := http.NewRequest("POST", GATEWAY_URL+"/auth/logout", nil)
+
+	// Include the session token from the cookie in the request
+	cookie, err := r.Cookie("session_token")
+	if err != nil {
+		http.Error(w, "Session not found", http.StatusUnauthorized)
+		return
+	}
+	req.AddCookie(cookie)
+
+	// Send request to auth-service
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("Error communicating with Authentication Service: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Handle the response
+	if resp.StatusCode == http.StatusOK {
+		// Clear the session cookie
+		http.SetCookie(w, &http.Cookie{
+			Name:  "session_token",
+			Value: "",
+			// HttpOnly: true,
+			Path:   "/",
+			MaxAge: -1, // Expire immediately
+		})
+
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	} else {
+		http.Error(w, "Failed to logout", http.StatusUnauthorized)
 	}
 }
 
@@ -83,80 +203,285 @@ func HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// HandleFetchAvailableContacts retrieves available contacts
-func HandleFetchAvailableContacts(w http.ResponseWriter, r *http.Request) {
+func HandleContacts(w http.ResponseWriter, r *http.Request) {
 	GATEWAY_URL := os.Getenv("GATEWAY_URL")
-	resp, err := http.Get(GATEWAY_URL + "/contacts/available")
+	log.Print("Gateway URL", GATEWAY_URL)
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok || userID == "" {
+		log.Print("User ID not found in context")
+		http.Error(w, "Unauthorized: user_id is required", http.StatusUnauthorized)
+		return
+	}
+
+	cookie, err := r.Cookie("session_token")
+	if err != nil || cookie.Value == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	log.Print("Session token", cookie.Value)
+	// Fetch only contacts from the contacts-service
+	req, err := http.NewRequest("GET", GATEWAY_URL+"/contacts/?user_id="+userID, nil)
 	if err != nil {
-		log.Printf("Error fetching available contacts: %v", err)
+		log.Printf("[HandleLogin] Failed to create request to contacts-service: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	req.AddCookie(cookie)
+
+	log.Print("Request", req.Header)
+	client := &http.Client{}
+	contactsResp, err := client.Do(req)
+	if err != nil {
+		log.Printf("[HandleLogin] Failed to fetch contacts for user %s: %v", userID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	defer contactsResp.Body.Close()
+
+	log.Print("Contacts response", contactsResp.Body)
+	if contactsResp.StatusCode != http.StatusOK {
+		log.Printf("[HandleLogin] Error from contacts-service for user %s: %s", userID, contactsResp.Status)
 		http.Error(w, "Failed to fetch contacts", http.StatusInternalServerError)
 		return
 	}
-	defer resp.Body.Close()
 
-	w.Header().Set("Content-Type", "application/json")
-	if _, err := w.Write([]byte(fmt.Sprintf("%s", resp.Body))); err != nil {
-		log.Printf("Error writing response: %v", err)
+	var data struct {
+		Contacts []struct {
+			ID        string `json:"id"`
+			UserID    string `json:"user_id"`
+			ContactID string `json:"contact_id"`
+			CreatedAt string `json:"created_at"`
+			Details   struct {
+				Username string `json:"username"`
+				Email    string `json:"email"`
+			} `json:"contactDetails"`
+		} `json:"contacts"`
 	}
-}
 
-// HandleFetchMyContacts retrieves the logged-in user's contacts
-func HandleFetchMyContacts(w http.ResponseWriter, r *http.Request) {
-	GATEWAY_URL := os.Getenv("GATEWAY_URL")
-	resp, err := http.Get(GATEWAY_URL + "/contacts/my")
+	log.Print("Decoding contacts response", contactsResp.Body)
+
+	err = json.NewDecoder(contactsResp.Body).Decode(&data)
 	if err != nil {
-		log.Printf("Error fetching user contacts: %v", err)
-		http.Error(w, "Failed to fetch user contacts", http.StatusInternalServerError)
+		log.Printf("[HandleLogin] Failed to decode contacts response for user %s: %v", userID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	defer resp.Body.Close()
+	log.Print("Decoded contacts response", data)
 
-	w.Header().Set("Content-Type", "application/json")
-	if _, err := w.Write([]byte(fmt.Sprintf("%s", resp.Body))); err != nil {
-		log.Printf("Error writing response: %v", err)
-	}
-}
-
-// HandleSendContactRequest sends a contact request
-func HandleSendContactRequest(w http.ResponseWriter, r *http.Request) {
-	contactID := r.FormValue("contact_id")
-	GATEWAY_URL := os.Getenv("GATEWAY_URL")
-	payload := map[string]string{"contact_id": contactID}
-	jsonPayload, _ := json.Marshal(payload)
-
-	resp, err := http.Post(GATEWAY_URL+"/contacts/request", "application/json", bytes.NewBuffer(jsonPayload))
+	// JSON encode contacts for embedding in template
+	contactsJSON, err := json.Marshal(data.Contacts)
 	if err != nil {
-		log.Printf("Error sending contact request: %v", err)
-		http.Error(w, "Failed to send request", http.StatusInternalServerError)
+		log.Printf("[HandleContacts] Failed to encode contacts as JSON: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
-		w.Write([]byte("Request sent successfully"))
-	} else {
-		http.Error(w, "Failed to send request", resp.StatusCode)
+	// Pass contacts data to the template
+	tmpl := template.Must(template.ParseGlob("templates/*.html"))
+	err = tmpl.ExecuteTemplate(w, "contacts.html", map[string]interface{}{
+		"Contacts":     data.Contacts,
+		"ContactsJSON": template.JS(contactsJSON), // Safe JSON for embedding
+		"UserID":       userID,
+	})
+
+	if err != nil {
+		log.Printf("[HandleLogin] Failed to render template for user %s: %v", userID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 }
-
-// HandleRemoveContact removes a contact
-func HandleRemoveContact(w http.ResponseWriter, r *http.Request) {
-	contactID := r.FormValue("contact_id")
+func HandleRequests(w http.ResponseWriter, r *http.Request) {
 	GATEWAY_URL := os.Getenv("GATEWAY_URL")
-	req, _ := http.NewRequest("DELETE", GATEWAY_URL+"/contacts/remove/"+contactID, nil)
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok || userID == "" {
+		log.Print("User ID not found in context")
+		http.Error(w, "Unauthorized: user_id is required", http.StatusUnauthorized)
+		return
+	}
+
+	cookie, err := r.Cookie("session_token")
+	if err != nil || cookie.Value == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Fetch contact requests from the contacts-service
+	req, err := http.NewRequest("GET", GATEWAY_URL+"/contacts/requests/?user_id="+userID, nil)
+	if err != nil {
+		log.Printf("[HandleRequests] Failed to create request to requests-service: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	req.AddCookie(cookie)
+
 	client := &http.Client{}
-
-	resp, err := client.Do(req)
+	requestsResp, err := client.Do(req)
 	if err != nil {
-		log.Printf("Error removing contact: %v", err)
-		http.Error(w, "Failed to remove contact", http.StatusInternalServerError)
+		log.Printf("[HandleRequests] Failed to fetch requests for user %s: %v", userID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	defer requestsResp.Body.Close()
+
+	if requestsResp.StatusCode != http.StatusOK {
+		log.Printf("[HandleRequests] Error from requests-service for user %s: %s", userID, requestsResp.Status)
+		http.Error(w, "Failed to fetch requests", http.StatusInternalServerError)
+		return
+	}
+
+	// Decode the response JSON
+	var requests []struct {
+		ID            string `json:"id"`
+		SenderDetails struct {
+			Username string `json:"username"`
+			Email    string `json:"email"`
+			UserID   string `json:"user_id"`
+		} `json:"sender_details"`
+		CreatedAtFormatted string `json:"created_at_formatted"`
+	}
+
+	err = json.NewDecoder(requestsResp.Body).Decode(&requests)
+	if err != nil {
+		log.Printf("[HandleRequests] Failed to decode requests response for user %s: %v", userID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("Decoded requests response for user %s: %+v", userID, requests)
+
+	// Render the requests using the `requests.html` template
+	tmpl := template.Must(template.ParseGlob("templates/*.html"))
+	err = tmpl.ExecuteTemplate(w, "requests.html", map[string]interface{}{
+		"Requests": requests,
+		"UserID":   userID,
+	})
+	if err != nil {
+		log.Printf("[HandleRequests] Failed to render template for user %s: %v", userID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+}
+
+func HandleDashboard(w http.ResponseWriter, r *http.Request) {
+	GATEWAY_URL := os.Getenv("GATEWAY_URL")
+	log.Print("Gateway URL", GATEWAY_URL)
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok || userID == "" {
+		log.Print("User ID not found in context")
+		http.Error(w, "Unauthorized: user_id is required", http.StatusUnauthorized)
+		return
+	}
+
+	cookie, err := r.Cookie("session_token")
+	if err != nil || cookie.Value == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	log.Print("Session token", cookie.Value)
+	// Fetch only contacts from the contacts-service
+	req, err := http.NewRequest("GET", GATEWAY_URL+"/contacts/?user_id="+userID, nil)
+	if err != nil {
+		log.Printf("[HandleLogin] Failed to create request to contacts-service: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	req.AddCookie(cookie)
+
+	log.Print("Request", req.Header)
+	client := &http.Client{}
+	contactsResp, err := client.Do(req)
+	if err != nil {
+		log.Printf("[HandleLogin] Failed to fetch contacts for user %s: %v", userID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	defer contactsResp.Body.Close()
+
+	log.Print("Contacts response", contactsResp.Body)
+	if contactsResp.StatusCode != http.StatusOK {
+		log.Printf("[HandleLogin] Error from contacts-service for user %s: %s", userID, contactsResp.Status)
+		http.Error(w, "Failed to fetch contacts", http.StatusInternalServerError)
+		return
+	}
+
+	var data struct {
+		Contacts []struct {
+			ID        string `json:"id"`
+			UserID    string `json:"user_id"`
+			ContactID string `json:"contact_id"`
+			CreatedAt string `json:"created_at"`
+			Details   struct {
+				Username string `json:"username"`
+				Email    string `json:"email"`
+			} `json:"contactDetails"`
+		} `json:"contacts"`
+	}
+
+	log.Print("Decoding contacts response", contactsResp.Body)
+
+	err = json.NewDecoder(contactsResp.Body).Decode(&data)
+	if err != nil {
+		log.Printf("[HandleLogin] Failed to decode contacts response for user %s: %v", userID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	log.Print("Decoded contacts response", data)
+	// Pass contacts data to the template
+	tmpl := template.Must(template.ParseGlob("templates/*.html"))
+	err = tmpl.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
+		"Contacts": data.Contacts,
+		"UserID":   userID,
+	})
+
+	if err != nil {
+		log.Printf("[HandleLogin] Failed to render template for user %s: %v", userID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+}
+
+type User struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+}
+
+func HandleSearch(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		http.Error(w, "Query parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	// Call the auth-service search API
+	gatewayURL := os.Getenv("GATEWAY_URL")
+	searchURL := gatewayURL + "/auth/search?q=" + query
+
+	resp, err := http.Get(searchURL)
+	if err != nil {
+		log.Printf("Failed to call search API: %v", err)
+		http.Error(w, "Failed to fetch search results", http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
-		w.Write([]byte("Contact removed successfully"))
-	} else {
-		http.Error(w, "Failed to remove contact", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("Search API returned non-OK status: %v", resp.Status)
+		http.Error(w, "Failed to fetch search results", http.StatusInternalServerError)
+		return
+	}
+
+	// Parse the response
+	var users []User // Match the API's array structure
+	err = json.NewDecoder(resp.Body).Decode(&users)
+	if err != nil {
+		log.Printf("Failed to parse search response: %v", err)
+		http.Error(w, "Failed to parse search results", http.StatusInternalServerError)
+		return
+	}
+
+	// Render results as JSON
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(users)
+	if err != nil {
+		log.Printf("Failed to render search results: %v", err)
+		http.Error(w, "Failed to render search results", http.StatusInternalServerError)
 	}
 }

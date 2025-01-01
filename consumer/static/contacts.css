@@ -1,42 +1,104 @@
-/* General Reset */
-body, html {
-    margin: 0;
-    padding: 0;
-    font-family: Arial, sans-serif;
-    background-color: #f9f9f9;
-}
-
 /* Contacts Container */
 .contacts-container {
-    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    height: 80vh;
+    width: 100%;
+    background-color: #f0f4f8;
+    padding: 1rem;
 }
 
+/* Contacts Header */
 .contacts-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 2rem;
+    justify-content: space-between;
+    padding: 1rem;
+    background-color: #0078d7;
+    color: #fff;
+    border-radius: 10px;
 }
 
 .contacts-header h1 {
-    font-size: 2rem;
-    color: #0078d7;
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin: 0;
 }
 
-.contacts-header form {
+.contacts-header .action-button {
+    padding: 0.5rem 1rem;
+    background-color: #fff;
+    color: #0078d7;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.contacts-header .action-button:hover {
+    background-color: #e6f7ff;
+}
+
+/* Contacts List */
+.contacts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Contact Item */
+.contact-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #fff;
+    padding: 1rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+
+.contact-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.contact-pic {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: #0078d7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.contact-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #333;
+}
+
+.contact-status {
+    font-size: 1rem;
+    color: #999;
+}
+
+/* Contact Actions */
+.contact-actions {
     display: flex;
     gap: 0.5rem;
 }
 
-.contacts-header input {
-    padding: 0.5rem;
-    font-size: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-}
-
-.contacts-header button {
-    padding: 0.5rem 1rem;
+.contact-actions .btn {
+    padding: 2rem 1rem;
     background-color: #0078d7;
     color: #fff;
     border: none;
@@ -45,42 +107,99 @@ body, html {
     transition: background-color 0.3s;
 }
 
-.contacts-header button:hover {
+.contact-actions .btn:hover {
     background-color: #005bb5;
 }
 
-.available-contacts, .my-contacts {
-    margin-bottom: 2rem;
+.contact-actions .btn.reject {
+    background-color: #ff4d4f;
 }
 
-h2 {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
+.contact-actions .btn.reject:hover {
+    background-color: #d9363e;
 }
 
-ul {
-    list-style: none;
-    padding: 0;
+/* Section Titles */
+.contacts-section-title {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #0078d7;
+    margin-bottom: 0.5rem;
 }
 
-li {
+/*  */
+
+
+.contact-list {
+    flex: 0 0 30%;
+    min-width: 250px;
+    padding-left: 30px ;
+    padding-right: 30px ;
+    overflow-y: auto;
+    height: 100%;
+    background-color: #f0f0f0;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem;
+    flex-direction: column;
+    border-right: 1px solid #ccc;
+}
+
+.search-component {
+    padding: 10px;
+    background-color: #fff;
     border-bottom: 1px solid #ccc;
 }
 
-button {
-    padding: 0.5rem 1rem;
-    background-color: #0078d7;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
+.search-component input {
+    width: 90%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    font-size: 1rem;
+}
+
+.list-items {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.list-item {
+    padding: 15px;
+    border-bottom: 1px solid #ddd;
     cursor: pointer;
     transition: background-color 0.3s;
 }
 
-button:hover {
-    background-color: #005bb5;
+
+.list-item p {
+    margin: 0;
+    font-size: 1rem;
+    color: #333;
+}
+
+
+.toast-container {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border-radius: 5px;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: all 0.3s ease-in-out;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateY(0);
 }

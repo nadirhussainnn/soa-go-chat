@@ -3,109 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contacts - ChatApp</title>
+    <title>Go Chat - Contacts</title>
+    <link rel="stylesheet" href="/static/index.css">
     <link rel="stylesheet" href="/static/contacts.css">
+    <link rel="stylesheet" href="/static/snackbar.css">
+    <style>
+        .list-item {
+            padding: 15px;
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .hidden {
+            display: none;
+        }
+        .action-btn {
+            margin-top: 10px;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .send-request-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+        }
+        .send-request-btn:hover {
+            background-color: #0056b3;
+        }
+        .remove-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+        }
+        .remove-btn:hover {
+            background-color: #c82333;
+        }
+    </style>
 </head>
 <body>
-    <div class="contacts-container">
-        <!-- Header -->
-        <header_logout >
-            <h1>Manage Contacts</h1>
-            <form id="search-form" method="POST">
-                <input type="text" id="search-input" placeholder="Search for a contact" required>
-                <button type="submit">Search</button>
-            </form>
-        </header_logout>
+    <!-- Include Header -->
+    {{ template "contacts_header.html" }}
 
-        <!-- Available Contacts Section -->
-        <section class="available-contacts">
-            <h2>Available Contacts</h2>
-            <ul id="available-contacts-list">
-                <!-- Contacts will be dynamically loaded here -->
-            </ul>
-        </section>
+    <div id="snackbar">Some text some message..</div>
+    <!-- Main Content -->
+    <div class="contact-chat-container">
+        <div class="search-component">
+            <input type="text" id="search" placeholder="Search...">
+        </div>
+        <ul id="contact-list" class="list-items">
+            {{ range .Contacts }}
+            <li class="list-item contact-item">
+                <p><strong>Name:</strong> {{ .Details.Username }}</p>
+                <p><strong>Email:</strong> {{ .Details.Email }}</p>
+                <button class="action-btn remove-btn" data-contact-id="{{ .ContactID }}">Remove</button>
+            </li>
+            {{ end }}
+        </ul>
+        <ul id="search-results" class="list-items hidden"></ul>
 
-        <!-- My Contacts Section -->
-        <section class="my-contacts">
-            <h2>My Contacts</h2>
-            <ul id="my-contacts-list">
-                <!-- Contacts will be dynamically loaded here -->
-            </ul>
-        </section>
     </div>
-
+    <script src="/static/helpers.js"></script>
     <script>
-        const searchForm = document.getElementById('search-form');
-        const searchInput = document.getElementById('search-input');
-        const availableContactsList = document.getElementById('available-contacts-list');
-        const myContactsList = document.getElementById('my-contacts-list');
+        // Pass contacts data to JavaScript
+        const contacts = JSON.parse('{{ .ContactsJSON }}');
+        const userId = "{{ .UserID }}";
+    
+        const ws = new WebSocket(`ws://localhost:8080/ws/contacts?user_id=${userId}`);
 
-        // Fetch and render available contacts
-        async function fetchAvailableContacts() {
-            const response = await fetch('/contacts/available');
-            const contacts = await response.json();
-            availableContactsList.innerHTML = '';
-            contacts.forEach(contact => {
-                const listItem = document.createElement('li');
-                listItem.innerHTML = `
-                    <span>${contact.username}</span>
-                    <button onclick="sendRequest('${contact.id}')">Send Request</button>
-                `;
-                availableContactsList.appendChild(listItem);
-            });
-        }
+        ws.onopen = () => {
+            console.log("WebSocket connection established.");
+        };
 
-        // Fetch and render my contacts
-        async function fetchMyContacts() {
-            const response = await fetch('/contacts/my');
-            const contacts = await response.json();
-            myContactsList.innerHTML = '';
-            contacts.forEach(contact => {
-                const listItem = document.createElement('li');
-                listItem.innerHTML = `
-                    <span>${contact.username}</span>
-                    <button onclick="removeContact('${contact.id}')">Remove</button>
-                `;
-                myContactsList.appendChild(listItem);
-            });
-        }
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log("WebSocket message received:", data);
 
-        // Search for contacts
-        searchForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const query = searchInput.value.trim();
-            if (query) {
-                const response = await fetch(`/contacts/search?q=${query}`);
-                const contacts = await response.json();
-                availableContactsList.innerHTML = '';
-                contacts.forEach(contact => {
-                    const listItem = document.createElement('li');
+            if (data.type === SOCKET_EVENTS.NEW_CONTACT_REQUEST_RECEIVED) {
+                showSnackbar("Request received for connection")
+            }
+            if (data.type === SOCKET_EVENTS.CONTACT_REQUEST_SENT_ACK) {
+                showSnackbar("Contact request sent Successfully!")
+            }
+        };
+
+        ws.onclose = () => {
+            console.log("WebSocket connection closed.");
+        };
+
+        ws.onerror = (error) => {
+            console.error("WebSocket error:", error);
+        };
+        // Search API Integration
+        document.getElementById("search").addEventListener("keyup", async function () {
+            const query = this.value.trim();
+            const searchResults = document.getElementById("search-results");
+            const contactList = document.getElementById("contact-list");
+    
+            if (!query) {
+                searchResults.classList.add("hidden");
+                return;
+            }
+    
+            try {
+                const response = await fetch(`/search?q=${query}`);
+                if (!response.ok) {
+                    console.error("Search API returned an error");
+                    return;
+                }
+    
+                const users = await response.json(); // The API returns an array of users
+                console.log("Search API Response:", users);
+    
+                searchResults.innerHTML = ""; // Clear existing results
+                users.forEach(user => {
+                    const isContact = contacts.some(c => c.ContactID === user.id);
+                    const listItem = document.createElement("li");
+                    listItem.classList.add("list-item");
+    
                     listItem.innerHTML = `
-                        <span>${contact.username}</span>
-                        <button onclick="sendRequest('${contact.id}')">Send Request</button>
+                        <p><strong>Name:</strong> ${user.username}</p>
+                        <p><strong>Email:</strong> ${user.email}</p>
+                        <button class="action-btn ${isContact ? 'remove-btn' : 'send-request-btn'}" data-user-id="${user.id}">
+                            ${isContact ? 'Remove' : 'Send Request'}
+                        </button>
                     `;
-                    availableContactsList.appendChild(listItem);
+    
+                    // Attach button handlers
+                    const button = listItem.querySelector("button");
+                    button.addEventListener("click", () => {
+                        if (isContact) {
+                            removeContact(user.id);
+                        } else {
+                            sendRequest(user.id);
+                        }
+                    });
+    
+                    searchResults.appendChild(listItem);
                 });
+    
+                searchResults.classList.remove("hidden");
+            } catch (error) {
+                console.error("Failed to fetch search results:", error);
             }
         });
+    
 
-        // Send contact request
-        async function sendRequest(contactId) {
-            await fetch(`/contacts/request/${contactId}`, { method: 'POST' });
-            alert('Request sent');
-            fetchAvailableContacts();
+        // Sending contact request
+
+        function sendRequest(targetUserId, targetUsername) {
+            const payload = {
+                type: "send_contact_request",
+                user_id: userId,
+                target_user_id: targetUserId,
+            };
+
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(payload));
+                console.log("Contact request sent:", payload);
+            } else {
+                console.error("WebSocket connection is not open.");
+            }
         }
 
-        // Remove contact
-        async function removeContact(contactId) {
-            await fetch(`/contacts/remove/${contactId}`, { method: 'DELETE' });
-            alert('Contact removed');
-            fetchMyContacts();
+
+
+        function removeContact(contactId) {
+            console.log("Removing contact:", contactId);
+            // Implement the logic to remove a contact
         }
 
-        // Initial load
-        fetchAvailableContacts();
-        fetchMyContacts();
+
     </script>
+    
+
 </body>
 </html>
