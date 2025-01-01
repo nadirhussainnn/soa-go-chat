@@ -6,6 +6,7 @@
     <title>Go Chat - Contacts</title>
     <link rel="stylesheet" href="/static/index.css">
     <link rel="stylesheet" href="/static/contacts.css">
+    <link rel="stylesheet" href="/static/snackbar.css">
     <style>
         .list-item {
             padding: 15px;
@@ -45,6 +46,7 @@
     <!-- Include Header -->
     {{ template "contacts_header.html" }}
 
+    <div id="snackbar">Some text some message..</div>
     <!-- Main Content -->
     <div class="contact-chat-container">
         <div class="search-component">
@@ -60,13 +62,39 @@
             {{ end }}
         </ul>
         <ul id="search-results" class="list-items hidden"></ul>
-    </div>
 
+    </div>
+    <script src="/static/helpers.js"></script>
     <script>
         // Pass contacts data to JavaScript
         const contacts = JSON.parse('{{ .ContactsJSON }}');
         const userId = "{{ .UserID }}";
     
+        const ws = new WebSocket(`ws://localhost:8080/ws/contacts?user_id=${userId}`);
+
+        ws.onopen = () => {
+            console.log("WebSocket connection established.");
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log("WebSocket message received:", data);
+
+            if (data.type === SOCKET_EVENTS.NEW_CONTACT_REQUEST_RECEIVED) {
+                showSnackbar("Request received for connection")
+            }
+            if (data.type === SOCKET_EVENTS.CONTACT_REQUEST_SENT_ACK) {
+                showSnackbar("Contact request sent Successfully!")
+            }
+        };
+
+        ws.onclose = () => {
+            console.log("WebSocket connection closed.");
+        };
+
+        ws.onerror = (error) => {
+            console.error("WebSocket error:", error);
+        };
         // Search API Integration
         document.getElementById("search").addEventListener("keyup", async function () {
             const query = this.value.trim();
@@ -121,15 +149,32 @@
             }
         });
     
-        function sendRequest(userId) {
-            console.log("Sending request to user:", userId);
-            // Implement the logic to send a contact request
+
+        // Sending contact request
+
+        function sendRequest(targetUserId, targetUsername) {
+            const payload = {
+                type: "send_contact_request",
+                user_id: userId,
+                target_user_id: targetUserId,
+            };
+
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(payload));
+                console.log("Contact request sent:", payload);
+            } else {
+                console.error("WebSocket connection is not open.");
+            }
         }
-    
+
+
+
         function removeContact(contactId) {
             console.log("Removing contact:", contactId);
             // Implement the logic to remove a contact
         }
+
+
     </script>
     
 

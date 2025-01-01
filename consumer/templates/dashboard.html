@@ -102,7 +102,6 @@
     });
 
         let userId = "{{ .UserID }}";
-        console.log("userId, userId", userId);
         // WebSocket connection
         const ws = new WebSocket(`ws://localhost:8080/ws/contacts?user_id=${userId}`);
 
