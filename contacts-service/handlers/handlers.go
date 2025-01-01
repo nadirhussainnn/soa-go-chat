@@ -175,13 +175,20 @@ func (h *ContactsHandler) FetchPendingRequests(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	for userID, details := range userDetailsMap {
+		log.Printf("UserID: %s, Details: %+v", userID, details)
+	}
+
 	// Map user details to requests
 	for i, req := range requests {
 		if details, exists := userDetailsMap[req.SenderID.String()]; exists {
 			requests[i].SenderDetails = details
+			requests[i].SenderDetails.UserID = req.SenderID.String() // Add UserID explicitly
+
 		}
 		if details, exists := userDetailsMap[req.ReceiverID.String()]; exists {
 			requests[i].TargetUserDetails = details
+			requests[i].TargetUserDetails.UserID = userID.String()
 		}
 		requests[i].CreatedAtFormatted = req.CreatedAt.Format("2 Jan, 2006")
 	}

@@ -75,10 +75,13 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 		log.Print("Received message", message)
 		switch message.Type {
 		case "send_contact_request":
+			// In this Target user is one who received the request, not the one who sent
 			h.HandleSendContactRequest(message.UserID, message.TargetUserID)
 		case "accept_contact_request":
+			// In this Target user is one who sent the request, not the one who received
 			h.HandleAcceptRejectContactRequest(message.RequestID, message.Action, userID, message.TargetUserID)
 		case "reject_contact_request":
+			// In this Target user is one who sent the request, not the one who received
 			h.HandleAcceptRejectContactRequest(message.RequestID, message.Action, userID, message.TargetUserID)
 		}
 	}
@@ -99,18 +102,48 @@ func (h *WebSocketHandler) HandleSendContactRequest(senderID, receiverID string)
 		return
 	}
 
+	// Notify sender of successful request creation
+	h.Mutex.Lock()
+	senderConn, senderOnline := h.Connections[senderID]
+	h.Mutex.Unlock()
+
+	if senderOnline {
+		if err := senderConn.WriteJSON(map[string]interface{}{
+			"type": CONTACT_REQUEST_SENT_ACK,
+		}); err != nil {
+			log.Printf("Failed to send acknowledgment to sender %s: %v", senderID, err)
+		}
+	}
+
 	// Check if the recipient is online
 	h.Mutex.Lock()
 	conn, online := h.Connections[receiverID]
 	h.Mutex.Unlock()
 
 	if online {
+
+		// Add a custom "type" field for the WebSocket payload
+		payload := map[string]interface{}{
+			"type":        NEW_CONTACT_REQUEST_RECEIVED,
+			"id":          contactRequest.ID,
+			"sender_id":   contactRequest.SenderID,
+			"receiver_id": contactRequest.ReceiverID,
+			"status":      contactRequest.Status,
+			"created_at":  contactRequest.CreatedAt, // If your model includes a CreatedAt field
+
+		}
+
 		// Send the request in real-time
-		if err := conn.WriteJSON(contactRequest); err != nil {
+		if err := conn.WriteJSON(payload); err != nil {
 			log.Printf("Failed to send real-time contact request to user %s: %v", receiverID, err)
 		} else {
 			log.Printf("Real-time contact request sent to user %s", receiverID)
 		}
+		// if err := conn.WriteJSON(contactRequest); err != nil {
+		// 	log.Printf("Failed to send real-time contact request to user %s: %v", receiverID, err)
+		// } else {
+		// 	log.Printf("Real-time contact request sent to user %s", receiverID)
+		// }
 	} else {
 		log.Print("Not online", receiverID, senderID)
 		// Notify via AMQP for later delivery
@@ -133,7 +166,7 @@ func (h *WebSocketHandler) HandleSendContactRequest(senderID, receiverID string)
 
 func (h *WebSocketHandler) HandleAcceptRejectContactRequest(requestID, action, userID, targetUserID string) {
 	// Fetch the request
-	log.Print("Accepting or rejecting contact request", requestID, action, userID, targetUserID)
+	log.Printf("Processing %s contact request: %s by %s for %s", action, requestID, userID, targetUserID)
 	request, err := h.Repo.GetContactRequestByID(requestID)
 	if err != nil {
 		log.Printf("Failed to fetch contact request: %v", err)
@@ -143,9 +176,16 @@ func (h *WebSocketHandler) HandleAcceptRejectContactRequest(requestID, action, u
 	if action == "accept" {
 		request.Status = "accepted"
 		// Add the contact to the database
-		err := h.Repo.AcceptOrReject(&models.Contact{
-			UserID:    request.SenderID,
-			ContactID: request.ReceiverID,
+		// Convert targetUserID (string) to UUID
+		targetUUID, err := uuid.Parse(targetUserID)
+		if err != nil {
+			log.Printf("Failed to parse targetUserID as UUID: %v", err)
+			return
+		}
+		err = h.Repo.AcceptOrReject(&models.Contact{
+			ID:        uuid.New(),
+			UserID:    request.ReceiverID,
+			ContactID: targetUUID,
 		})
 		if err != nil {
 			log.Printf("Failed to add contact: %v", err)
@@ -165,14 +205,14 @@ func (h *WebSocketHandler) HandleAcceptRejectContactRequest(requestID, action, u
 		return
 	}
 
-	// Broadcast the update to the target user if online
+	// Broadcast the update to the sender if online
 	h.Mutex.Lock()
 	targetConn, online := h.Connections[targetUserID]
 	h.Mutex.Unlock()
 
 	if online {
 		err := targetConn.WriteJSON(map[string]string{
-			"type":   "contact_request_update",
+			"type":   UPDATE_RECEIVED_ON_CONTACT_REQUEST,
 			"action": action,
 			"status": request.Status,
 			"id":     request.ID.String(),
@@ -181,6 +221,22 @@ func (h *WebSocketHandler) HandleAcceptRejectContactRequest(requestID, action, u
 			log.Printf("Failed to send update to target user: %v", err)
 		}
 	} else {
-		log.Printf("Target user %s is offline. No real-time update sent.", targetUserID)
+		log.Printf("User who sent request %s is offline. No real-time update sent.", targetUserID)
+	}
+
+	// Notify the person performing accept/reject action
+	h.Mutex.Lock()
+	senderConn, performerOnline := h.Connections[userID]
+	h.Mutex.Unlock()
+
+	if performerOnline {
+		if err := senderConn.WriteJSON(map[string]string{
+			"type":   UPDATE_SENT_ON_CONTACT_REQUEST,
+			"action": action,
+			"status": request.Status,
+			"id":     request.ID.String(),
+		}); err != nil {
+			log.Printf("Failed to send update to action performer %s: %v", userID, err)
+		}
 	}
 }

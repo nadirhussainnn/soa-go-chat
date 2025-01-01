@@ -36,11 +36,11 @@ func main() {
 	repo := repository.NewContactsRepository(db)
 
 	// Set up RabbitMQ
-	conn, _ := amqp.InitRabbitMQ(AMQP_URL) // Connection setup
+	conn, ch := amqp.InitRabbitMQ(AMQP_URL) // Connection setup
 	defer conn.Close()
 
 	// Initialize WebSocket handler
-	webSocketHandler := utils.NewWebSocketHandler(repo, nil) // Pass nil as channel is now dynamic
+	webSocketHandler := utils.NewWebSocketHandler(repo, ch) // Pass nil as channel is now dynamic
 
 	handler := &handlers.ContactsHandler{
 		Repo:             repo,

@@ -72,7 +72,7 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	new_cookie := &http.Cookie{
 		Name:    "session_token",
 		Value:   tokenString,
-		Expires: time.Now().Add(20 * time.Minute),
+		Expires: time.Now().Add(120 * time.Minute),
 		// HttpOnly: true,
 		Path: "/",
 	}

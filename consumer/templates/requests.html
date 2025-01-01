@@ -5,11 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Go Chat - Requests</title>
     <link rel="stylesheet" href="/static/index.css">
-    <link rel="stylesheet" href="/static/dashboard.css">
+    <link rel="stylesheet" href="/static/snackbar.css">
+
     <style>
         .list-item {
             padding: 15px;
             border: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             margin-bottom: 10px;
             border-radius: 5px;
             background-color: #f9f9f9;
@@ -18,19 +22,22 @@
             margin-top: 10px;
         }
         .accept-btn {
+            width: 120px;
             background-color: #28a745;
             color: white;
             border: none;
-            padding: 5px 10px;
+            padding: 10px 10px;
             margin-right: 5px;
             border-radius: 3px;
             cursor: pointer;
         }
         .reject-btn {
+            width: 120px;
             background-color: #dc3545;
             color: white;
             border: none;
-            padding: 5px 10px;
+            padding: 10px 10px;
+            margin-top: 10px;
             border-radius: 3px;
             cursor: pointer;
         }
@@ -46,25 +53,23 @@
     <!-- Include Header -->
     {{ template "requests_header.html" }}
 
+    <div id="snackbar">Some text some message..</div>
+
     <div class="contact-chat-container">
         <div class="contact-list">
             <ul id="request-list" class="list-items">
                 <!-- Check if there are any requests -->
                 {{ if .Requests }}
                     {{ range .Requests }}
-                    <li class="list-item request-item">
-                        <p><strong>Name:</strong> {{ .Details.Username }}</p>
-                        <p><strong>Email:</strong> {{ .Details.Email }}</p>
-                        <p><strong>Requested On:</strong> {{ .RequestedOn }}</p>
-                        <div class="action-buttons">
-                            <form method="POST" action="/requests/accept">
-                                <input type="hidden" name="request_id" value="{{ .ID }}">
-                                <button type="submit" class="accept-btn">Accept</button>
-                            </form>
-                            <form method="POST" action="/requests/reject">
-                                <input type="hidden" name="request_id" value="{{ .ID }}">
-                                <button type="submit" class="reject-btn">Reject</button>
-                            </form>
+                    <li class="list-item request-item" data-request-id="{{ .ID }}">
+                        <div>
+                            <p><strong>Username:</strong> {{ .SenderDetails.Username }}</p>
+                            <p><strong>Email:</strong> {{ .SenderDetails.Email }}</p>
+                            <p><strong>Request Received On:</strong> {{ .CreatedAtFormatted }}</p>
+                        </div>
+                        <div class="action-buttons">                  
+                            <button class="accept-btn" data-request-id="{{ .ID }}" data-target-user-id="{{ .SenderDetails.UserID }}">Accept</button>
+                            <button class="reject-btn" data-request-id="{{ .ID }}" data-target-user-id="{{ .SenderDetails.UserID }}">Reject</button>
                         </div>
                     </li>
                     {{ end }}
@@ -74,6 +79,74 @@
             </ul>
         </div>
     </div>
+    
+
+    <script src="/static/helpers.js"></script>
+    <script>
+        
+        const userId = "{{ .UserID }}";
+        const ws = new WebSocket(`ws://localhost:8080/ws/contacts?user_id=${userId}`);
+    
+        ws.onopen = () => {
+            console.log("WebSocket connection established.");
+        };
+    
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === SOCKET_EVENTS.UPDATE_SENT_ON_CONTACT_REQUEST) {
+                showSnackbar(`Request ${data.action}ed successfully!`)
+                const requestElement = document.querySelector(`[data-request-id="${data.id}"]`);
+                if (requestElement) requestElement.remove();
+            }
+
+            if (data.type === SOCKET_EVENTS.UPDATE_RECEIVED_ON_CONTACT_REQUEST) {
+                showSnackbar("Your request was accepted")
+            }
+        };
+    
+        ws.onclose = () => {
+            console.log("WebSocket connection closed.");
+        };
+    
+        ws.onerror = (error) => {
+            console.error("WebSocket error:", error);
+        };
+    
+        // Handle accept button click
+        document.addEventListener("click", (event) => {
+            if (event.target.classList.contains("accept-btn")) {
+                const requestId = event.target.getAttribute("data-request-id");
+                const targetUserId = event.target.getAttribute("data-target-user-id");
+                handleRequestAction("accept", requestId, targetUserId);
+            }
+    
+            if (event.target.classList.contains("reject-btn")) {
+                const requestId = event.target.getAttribute("data-request-id");
+                const targetUserId = event.target.getAttribute("data-target-user-id");
+                handleRequestAction("reject", requestId, targetUserId);
+            }
+        });
+    
+        function handleRequestAction(action, requestId, targetUserId) {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(
+                    JSON.stringify({
+                        type: `${action}_contact_request`,
+                        request_id: requestId,
+                        user_id: userId,
+                        target_user_id: targetUserId,
+                        action: action,
+                    })
+                );
+                console.log(`Request ${action} sent for request ID: ${requestId}`);
+            } else {
+                console.error("WebSocket connection is not open.");
+                showToast("Failed to perform action. WebSocket not connected.", "error");
+            }
+        }
+    
+    </script>
     
 </body>
 </html>

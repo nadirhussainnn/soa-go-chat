@@ -289,10 +289,8 @@ func HandleContacts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 }
-
 func HandleRequests(w http.ResponseWriter, r *http.Request) {
 	GATEWAY_URL := os.Getenv("GATEWAY_URL")
-	log.Print("Gateway URL", GATEWAY_URL)
 	userID, ok := r.Context().Value("user_id").(string)
 	if !ok || userID == "" {
 		log.Print("User ID not found in context")
@@ -305,7 +303,6 @@ func HandleRequests(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	log.Print("Session token", cookie.Value)
 
 	// Fetch contact requests from the contacts-service
 	req, err := http.NewRequest("GET", GATEWAY_URL+"/contacts/requests/?user_id="+userID, nil)
@@ -325,22 +322,21 @@ func HandleRequests(w http.ResponseWriter, r *http.Request) {
 	}
 	defer requestsResp.Body.Close()
 
-	// Validate response status
 	if requestsResp.StatusCode != http.StatusOK {
 		log.Printf("[HandleRequests] Error from requests-service for user %s: %s", userID, requestsResp.Status)
 		http.Error(w, "Failed to fetch requests", http.StatusInternalServerError)
 		return
 	}
 
-	// Decode the response JSON directly into an array
+	// Decode the response JSON
 	var requests []struct {
-		ID          string `json:"id"`
-		RequesterID string `json:"requester_id"`
-		RequestedOn string `json:"requested_on"`
-		Details     struct {
+		ID            string `json:"id"`
+		SenderDetails struct {
 			Username string `json:"username"`
 			Email    string `json:"email"`
-		} `json:"requestDetails"`
+			UserID   string `json:"user_id"`
+		} `json:"sender_details"`
+		CreatedAtFormatted string `json:"created_at_formatted"`
 	}
 
 	err = json.NewDecoder(requestsResp.Body).Decode(&requests)
@@ -349,6 +345,7 @@ func HandleRequests(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+
 	log.Printf("Decoded requests response for user %s: %+v", userID, requests)
 
 	// Render the requests using the `requests.html` template
