@@ -105,8 +105,10 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	// Pass contacts data to the template
 	tmpl := template.Must(template.ParseGlob("templates/*.html"))
 	err = tmpl.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
-		"Contacts": data.Contacts,
-		"UserID":   user.UserID,
+		"Contacts":       data.Contacts,
+		"UserID":         user.UserID,
+		"WebSocketURL":   os.Getenv("GATEWAY_WS_URL"),
+		"GatewayHttpURL": os.Getenv("GATEWAY_URL"),
 	})
 
 	if err != nil {
@@ -286,6 +288,7 @@ func HandleContacts(w http.ResponseWriter, r *http.Request) {
 		"Contacts":     data.Contacts,
 		"ContactsJSON": template.JS(contactsJSON), // Safe JSON for embedding
 		"UserID":       userID,
+		"WebSocketURL": os.Getenv("GATEWAY_WS_URL"),
 	})
 
 	if err != nil {
@@ -355,8 +358,9 @@ func HandleRequests(w http.ResponseWriter, r *http.Request) {
 	// Render the requests using the `requests.html` template
 	tmpl := template.Must(template.ParseGlob("templates/*.html"))
 	err = tmpl.ExecuteTemplate(w, "requests.html", map[string]interface{}{
-		"Requests": requests,
-		"UserID":   userID,
+		"Requests":     requests,
+		"UserID":       userID,
+		"WebSocketURL": os.Getenv("GATEWAY_WS_URL"),
 	})
 	if err != nil {
 		log.Printf("[HandleRequests] Failed to render template for user %s: %v", userID, err)
@@ -430,8 +434,9 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	// Pass contacts data to the template
 	tmpl := template.Must(template.ParseGlob("templates/*.html"))
 	err = tmpl.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
-		"Contacts": data.Contacts,
-		"UserID":   userID,
+		"Contacts":     data.Contacts,
+		"UserID":       userID,
+		"WebSocketURL": os.Getenv("GATEWAY_WS_URL"),
 	})
 
 	if err != nil {
