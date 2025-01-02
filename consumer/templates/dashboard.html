@@ -89,26 +89,26 @@
     <script>
       let userId = "{{ .UserID }}";
 
+   
       // Search Functionality
-      document.getElementById("search").addEventListener("keyup", function () {
-        const query = this.value.toLowerCase();
-        const contacts = document.querySelectorAll(".contact-item");
+document.getElementById("search").addEventListener("keyup", function () {
+    const query = this.value.toLowerCase().trim();
+    const contacts = document.querySelectorAll(".contact-item");
 
-        contacts.forEach((contact) => {
-          const name = contact
-            .querySelector("p strong")
-            .nextSibling.nodeValue.toLowerCase();
-          const email = contact
-            .querySelector("p:nth-child(2)")
-            .innerText.toLowerCase();
+    contacts.forEach((contact) => {
+        // Get the name and email text from the contact element
+        const name = contact.getAttribute("data-username").toLowerCase();
+        const email = contact.getAttribute("data-email").toLowerCase();
 
-          if (name.includes(query) || email.includes(query)) {
-            contact.style.display = ""; // Show
-          } else {
-            contact.style.display = "none"; // Hide
-          }
-        });
-      });
+        // Check if the query matches either the name or the email
+        if (name.includes(query) || email.includes(query)) {
+            contact.style.display = ""; // Show the contact
+        } else {
+            contact.style.display = "none"; // Hide the contact
+        }
+    });
+});
+
 
       // Event listener for contact click
       document
@@ -126,48 +126,6 @@
           }
         });
 
-      // function loadChatTemplate(contactId, username, email) {
-      //     const chatContainer = document.getElementById("chat-container");
-
-      //     fetch(`/messages?user_id=${userId}&contact_id=${contactId}`)
-      //         .then((response) => {
-      //             if (!response.ok) throw new Error("Failed to load chat");
-      //             console.log("Messages loaded", response)
-      //             return response.text();
-      //         })
-      //         .then((html) => {
-      //             chatContainer.innerHTML = html;
-      //             console.log(`Loaded chat for contact: ${username}`);
-      //         })
-      //         .catch((err) => console.error(err));
-
-      //     chatContainer.innerHTML = "";
-      //     // <div class="profile-pic"></div>
-      //     // Add new chat template with dynamic data
-      //     chatContainer.innerHTML = `
-      //         <header class="chat-header">
-
-      //             <img src="/static/images/avatar.png" alt="No Chat Selected" class="default-chat-icon">
-      //             <div class="username">${username}</div>
-      //         </header>
-      //         <main class="chat-messages" id="chat-messages">
-      //             <!-- Messages will be dynamically added here -->
-      //         </main>
-      //         <footer class="chat-input">
-      //             <form id="message-form">
-      //                 <input type="text" id="message-input" placeholder="Type a message" required>
-      //                 <label for="attachment">
-      //                     <input type="file" id="attachment" style="display: none;">
-      //                     📎
-      //                 </label>
-      //                 <button type="submit">Send</button>
-      //             </form>
-      //         </footer>
-      //     `;
-
-      //     // Initialize WebSocket for this contact
-      //     initializeWebSocket(contactId);
-      // }
 
       function loadChat(contactId, username, email) {
         const chatContainer = document.getElementById("chat-container");
