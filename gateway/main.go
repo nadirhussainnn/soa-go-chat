@@ -167,7 +167,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 		// Allow credentials (cookies, session tokens)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		// Allow specific HTTP methods
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE")
 		// Allow specific headers
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
