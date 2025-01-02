@@ -85,7 +85,10 @@
     <script>
         
         const userId = "{{ .UserID }}";
-        const ws = new WebSocket(`ws://localhost:8080/ws/contacts?user_id=${userId}`);
+        const GATEWAY_WS_URL = "{{ .WebSocketURL }}"
+        console.log("GATEWAY_WS_URL", GATEWAY_WS_URL)
+
+        const ws = new WebSocket(`${GATEWAY_WS_URL}/contacts?user_id=${userId}`);
     
         ws.onopen = () => {
             console.log("WebSocket connection established.");

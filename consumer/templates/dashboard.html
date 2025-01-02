@@ -107,9 +107,13 @@
       let contactId, username, email;
       let chatMessages, messageForm, messageInput;
 
+      const GATEWAY_WS_URL = "{{ .WebSocketURL }}"
+      const GATEWAY_HTTP_URL = "{{ .GatewayHttpURL }}"
+      console.log("GATEWAY_WS_URL", GATEWAY_WS_URL)
+      console.log("GATEWAY_HTTP", GATEWAY_HTTP_URL)
       // Global WebSocket connection
       const ws = new WebSocket(
-        `ws://localhost:8080/ws/messages?user_id=${userId}`
+        `${GATEWAY_WS_URL}/messages?user_id=${userId}`
       );
 
       document.getElementById("search").addEventListener("keyup", function () {
@@ -190,7 +194,6 @@
           .then((response) => response.json())
           .then((messages) => {
             messages.forEach((message) => {
-              console.log("Messages", message);
               appendMessageBubble(message);
             });
             chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -208,7 +211,7 @@
         );
 
         if (message.message_type === "file") {
-            const fileDownloadUrl = `http://localhost:8080/messages/file/?message_id=${message.id}`;
+            const fileDownloadUrl = `${GATEWAY_HTTP_URL}/messages/file/?message_id=${message.id}`;
 
           messageBubble.innerHTML = `
       <p>📎 <a href="${fileDownloadUrl}" download="${message.file_name}" target="_blank">
@@ -347,17 +350,13 @@
           }
         }
         if (data.type === SOCKET_EVENTS.FILE_UPLOAD_PROGRESS) {
-          console.log("data.progress", data.progress);
           const fileBubble = document.querySelector(
             `.message-bubble.sent[data-file-id="${data.file_id}"]`
           );
-          console.log("fileBubble ", fileBubble);
           if (fileBubble) {
             const progressBar = fileBubble.querySelector(".progress");
-            console.log("progressBar", progressBar);
             if (progressBar) {
               progressBar.style.width = `${data.progress}%`;
-              console.log("progressBar width", progressBar.style.width);
             }
           }
         }
