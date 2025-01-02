@@ -107,14 +107,12 @@
       let contactId, username, email;
       let chatMessages, messageForm, messageInput;
 
-      const GATEWAY_WS_URL = "{{ .WebSocketURL }}"
-      const GATEWAY_HTTP_URL = "{{ .GatewayHttpURL }}"
-      console.log("GATEWAY_WS_URL", GATEWAY_WS_URL)
-      console.log("GATEWAY_HTTP", GATEWAY_HTTP_URL)
+      const GATEWAY_WS_URL = "{{ .WebSocketURL }}";
+      const GATEWAY_HTTP_URL = "{{ .GatewayHttpURL }}";
+      console.log("GATEWAY_WS_URL", GATEWAY_WS_URL);
+      console.log("GATEWAY_HTTP", GATEWAY_HTTP_URL);
       // Global WebSocket connection
-      const ws = new WebSocket(
-        `${GATEWAY_WS_URL}/messages?user_id=${userId}`
-      );
+      const ws = new WebSocket(`${GATEWAY_WS_URL}/messages?user_id=${userId}`);
 
       document.getElementById("search").addEventListener("keyup", function () {
         const query = this.value.toLowerCase().trim();
@@ -211,16 +209,13 @@
         );
 
         if (message.message_type === "file") {
-            const fileDownloadUrl = `${GATEWAY_HTTP_URL}/messages/file/?message_id=${message.id}`;
+          const fileDownloadUrl = `${GATEWAY_HTTP_URL}/messages/file/?message_id=${message.id}`;
 
           messageBubble.innerHTML = `
-      <p>📎 <a href="${fileDownloadUrl}" download="${message.file_name}" target="_blank">
-          ${message.file_name}
-        </a></p>
-      <span class="message-time">${new Date(
-        message.created_at
-      ).toLocaleTimeString()}</span>
-    `;
+          <p>📎 <a href="#" onclick="downloadFile('${fileDownloadUrl}', '${
+            message.file_name
+          }')">${message.file_name}</a></p>
+          <span class="message-time">${new Date(message.created_at).toLocaleTimeString()}</span>`;
         } else {
           messageBubble.innerHTML = `
       <p>${message.content}</p>
@@ -232,6 +227,39 @@
 
         chatMessages.appendChild(messageBubble);
       }
+
+      function downloadFile(url, fileName) {
+    // Get cookies from the browser
+    const cookies = document.cookie; // Example: "session_token=your_token_value"
+        console.log("COOKIE", cookies)
+    fetch(url, {
+        method: 'GET',
+        headers: {
+            'Cookie': cookies, // Attach cookies manually
+        },
+        credentials: 'include', // Also ensure cookies are included automatically
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to download file');
+        }
+        return response.blob(); // Convert response to a binary blob
+    })
+    .then(blob => {
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl); // Clean up
+    })
+    .catch(error => {
+        console.error('Error downloading file:', error);
+    });
+}
+
 
       function handleMessageSubmit(event) {
         event.preventDefault();
