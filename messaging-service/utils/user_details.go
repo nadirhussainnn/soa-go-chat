@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
-	"messaging-service/models"
 
-	"github.com/google/uuid"
 	"github.com/streadway/amqp"
 )
 
@@ -29,10 +27,6 @@ type DecodeJWTResponse struct {
 
 type BatchDetailsRequest struct {
 	UserIDs []string `json:"user_ids"`
-}
-
-type BatchDetailsResponse struct {
-	UserDetails map[string]*models.SenderDetails `json:"user_details"`
 }
 
 // DecodeJWT sends the JWT to the auth-service via AMQP and retrieves user details
@@ -88,76 +82,4 @@ func DecodeJWT(amqpChannel *amqp.Channel, sessionToken string) (*DecodeJWTRespon
 	}
 
 	return nil, errors.New("no response from auth-service")
-}
-
-// GetUsersDetails sends a batch request to auth-service and retrieves user details
-func GetUsersDetails(channel *amqp.Channel, userIDs []string) (map[string]*models.SenderDetails, error) {
-	// Prepare the request payload
-	request := BatchDetailsRequest{UserIDs: userIDs}
-	payload, err := json.Marshal(request)
-	if err != nil {
-		return nil, err
-	}
-
-	// Declare the response queue (static, pre-defined)
-	_, err = channel.QueueDeclare(
-		AUTH_BATCH_DETAILS_RESPONSE, // Queue name (use a constant)
-		false,                       // Durable
-		false,                       // Delete when unused
-		false,                       // Exclusive
-		false,                       // No-wait
-		nil,                         // Arguments
-	)
-	if err != nil {
-		log.Printf("Failed to declare response queue: %v", err)
-		return nil, err
-	}
-
-	correlationID := uuid.New().String() // Generate a unique CorrelationId
-
-	// Publish the request to the request queue
-	err = channel.Publish(
-		"",                         // Exchange
-		AUTH_BATCH_DETAILS_REQUEST, // Routing key (request queue)
-		false,                      // Mandatory
-		false,                      // Immediate
-		amqp.Publishing{
-			ContentType:   "application/json",
-			Body:          payload,
-			CorrelationId: correlationID,
-		},
-	)
-	if err != nil {
-		log.Printf("Failed to publish batch request: %v", err)
-		return nil, err
-	}
-	log.Print("Sent request with coooorr", correlationID)
-	// Consume messages from the response queue
-	msgs, err := channel.Consume(
-		AUTH_BATCH_DETAILS_RESPONSE, // Queue name (response queue)
-		"",                          // Consumer tag
-		true,                        // Auto-acknowledge
-		false,                       // Exclusive
-		false,                       // No-local
-		false,                       // No-wait
-		nil,                         // Args
-	)
-	if err != nil {
-		log.Printf("Failed to consume from response queue: %v", err)
-		return nil, err
-	}
-
-	log.Print("Received msgs from queue", msgs)
-	// Wait for a response
-	for msg := range msgs {
-		var response BatchDetailsResponse
-		err = json.Unmarshal(msg.Body, &response)
-		if err != nil {
-			log.Printf("Failed to unmarshal response: %v", err)
-			continue
-		}
-		return response.UserDetails, nil
-	}
-
-	return nil, errors.New("no response received from auth-service")
 }

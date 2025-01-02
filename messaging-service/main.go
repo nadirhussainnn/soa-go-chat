@@ -53,7 +53,7 @@ func main() {
 	}
 
 	http.HandleFunc("/ws", webSocketHandler.HandleWebSocket)
-	http.Handle("/messages/", authMiddleware.RequireAuth(http.HandlerFunc(handler.FetchMessages)))
+	http.Handle("/", authMiddleware.RequireAuth(http.HandlerFunc(handler.FetchMessages)))
 
 	log.Println("Messaging service running on port", PORT)
 	log.Fatal(http.ListenAndServe(":"+PORT, nil))

@@ -482,3 +482,74 @@ func HandleSearch(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to render search results", http.StatusInternalServerError)
 	}
 }
+
+type Message struct {
+	ID         string `json:"id"`
+	SenderID   string `json:"sender_id"`
+	ReceiverID string `json:"receiver_id"`
+	Content    string `json:"content"`
+	CreatedAt  string `json:"created_at"`
+}
+
+// HandleMessages fetches messages between the logged-in user and a selected contact
+func HandleMessages(w http.ResponseWriter, r *http.Request) {
+	GATEWAY_URL := os.Getenv("GATEWAY_URL")
+	userID := r.URL.Query().Get("user_id")
+	contactID := r.URL.Query().Get("contact_id")
+
+	// Check if user_id and contact_id are provided
+	if userID == "" || contactID == "" {
+		http.Error(w, "Missing user_id or contact_id", http.StatusBadRequest)
+		return
+	}
+
+	// Extract session cookie
+	cookie, err := r.Cookie("session_token")
+	if err != nil || cookie.Value == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Make a request to the messaging service
+	req, err := http.NewRequest("GET", GATEWAY_URL+"/messages/?user_id="+userID+"&contact_id="+contactID, nil)
+	if err != nil {
+		log.Printf("[HandleMessages] Failed to create request to messaging-service: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	req.AddCookie(cookie)
+
+	client := &http.Client{}
+	messagesResp, err := client.Do(req)
+	if err != nil {
+		log.Printf("[HandleMessages] Failed to fetch messages for user %s: %v", userID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	defer messagesResp.Body.Close()
+
+	if messagesResp.StatusCode != http.StatusOK {
+		log.Printf("[HandleMessages] Error from messaging-service for user %s: %s", userID, messagesResp.Status)
+		http.Error(w, "Failed to fetch messages", http.StatusInternalServerError)
+		return
+	}
+
+	// Decode the response from the messaging service
+	var messages []Message
+	err = json.NewDecoder(messagesResp.Body).Decode(&messages)
+	if err != nil {
+		log.Printf("[HandleMessages] Failed to decode messages response for user %s: %v", userID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("Decoded messages is %v", messages[0])
+
+	// Return the messages as JSON
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(messages); err != nil {
+		log.Printf("[HandleMessages] Failed to encode messages response for user %s: %v", userID, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+}

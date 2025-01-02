@@ -51,6 +51,9 @@ func (jd *JWTDecoder) ListenForJWTDecode(conn *amqp.Connection) {
 		utils.AUTH_JWT_DECODE_RESPONSE,
 		utils.AUTH_JWT_DECODE_CONTACTS,
 		utils.AUTH_JWT_DECODE_RESPONSE_CONTACTS,
+
+		utils.AUTH_JWT_DECODE_MESSAGING,
+		utils.AUTH_JWT_DECODE_RESPONSE_MESSAGING,
 	}
 
 	for _, queue := range queues {
@@ -60,6 +63,7 @@ func (jd *JWTDecoder) ListenForJWTDecode(conn *amqp.Connection) {
 	// Start consumers with dedicated channels
 	go jd.startConsumer(conn, utils.AUTH_JWT_DECODE, utils.AUTH_JWT_DECODE_RESPONSE)
 	go jd.startConsumer(conn, utils.AUTH_JWT_DECODE_CONTACTS, utils.AUTH_JWT_DECODE_RESPONSE_CONTACTS)
+	go jd.startConsumer(conn, utils.AUTH_JWT_DECODE_MESSAGING, utils.AUTH_JWT_DECODE_RESPONSE_MESSAGING)
 
 	time.Sleep(2 * time.Second)
 

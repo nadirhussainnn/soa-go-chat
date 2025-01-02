@@ -1,207 +1,315 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Go Chat - Dashboard</title>
-    <link rel="stylesheet" href="/static/index.css">
-    <link rel="stylesheet" href="/static/dashboard.css">
-    <link rel="stylesheet" href="/static/chat.css">
-    <link rel="stylesheet" href="/static/snackbar.css">
+    <link rel="stylesheet" href="/static/index.css" />
+    <link rel="stylesheet" href="/static/dashboard.css" />
+    <link rel="stylesheet" href="/static/chat.css" />
+    <link rel="stylesheet" href="/static/snackbar.css" />
 
     <style>
-        .list-item {
-    padding: 15px;
-    border: 1px solid #ddd;
-    margin-bottom: 10px;
-    border-radius: 5px;
-    background-color: #f9f9f9;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.list-item:hover{
-    border-color: #0078d7;
-}
-.hidden {
-    display: none;
-}
+      .list-item {
+        padding: 15px;
+        border: 1px solid #ddd;
+        margin-bottom: 10px;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .list-item:hover {
+        border-color: #0078d7;
+      }
+      .hidden {
+        display: none;
+      }
 
-.default-chat-icon {
-    max-width: 70px !important;
-    max-height: 70px !important;
-}
-
+      .default-chat-icon {
+        max-width: 70px !important;
+        max-height: 70px !important;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <!-- Include Header -->
     {{ template "dashboard_header.html" }}
 
     <div id="snackbar">Some text some message..</div>
 
     <div class="contact-chat-container">
-        <!-- Contact List -->
-        <div class="contact-list">
-            <div class="search-component">
-                <input type="text" id="search" placeholder="Search...">
+      <!-- Contact List -->
+      <div class="contact-list">
+        <div class="search-component">
+          <input type="text" id="search" placeholder="Search..." />
+        </div>
+        <ul id="contact-list" class="list-items">
+          <!-- Contacts List -->
+          {{ range .Contacts }}
+          <li
+            class="list-item contact-item"
+            data-contact-id="{{ .Details.UserID }}"
+            data-username="{{ .Details.Username }}"
+            data-email="{{ .Details.Email }}"
+          >
+            <img
+              src="/static/images/avatar.png"
+              alt="No Chat Selected"
+              class="default-chat-icon"
+            />
+
+            <div>
+              <p
+                style="
+                  color: #0078d7;
+                  font-size: 1.2rem;
+                  text-transform: capitalize;
+                  padding: 0;
+                "
+              >
+                {{ .Details.Username }}
+              </p>
+              <p>{{ .Details.Email }}</p>
             </div>
-            <ul id="contact-list" class="list-items">
-                <!-- Contacts List -->
-                {{ range .Contacts }}
-                <li class="list-item contact-item" data-contact-id="{{ .Details.UserID }}" data-username="{{ .Details.Username }}" data-email="{{ .Details.Email }}">
+          </li>
+          {{ end }}
+        </ul>
+      </div>
 
-                    <img src="/static/images/avatar.png" alt="No Chat Selected" class="default-chat-icon">
-
-                    <div>
-                        <p style="color: #0078d7; font-size: 1.2rem; text-transform: capitalize; padding: 0;"> {{ .Details.Username }}</p>
-                        <p>{{ .Details.Email }}</p>
-                    </div>
-
-                </li>
-                {{ end }}
-            </ul>
-        </div>
-    
-        <!-- Chat Container -->
-        <div class="chat-container" id="chat-container">
-            {{ template "no_chat.html" }}
-        </div>
+      <!-- Chat Container -->
+      <div class="chat-container" id="chat-container">
+        {{ template "no_chat.html" }}
+      </div>
     </div>
 
     <script src="/static/helpers.js"></script>
     <script>
-        // Search Functionality
-        document.getElementById("search").addEventListener("keyup", function () {
-            const query = this.value.toLowerCase();
-            const contacts = document.querySelectorAll(".contact-item");
-    
-            contacts.forEach((contact) => {
-                const name = contact.querySelector("p strong").nextSibling.nodeValue.toLowerCase();
-                const email = contact.querySelector("p:nth-child(2)").innerText.toLowerCase();
-    
-                if (name.includes(query) || email.includes(query)) {
-                    contact.style.display = ""; // Show
-                } else {
-                    contact.style.display = "none"; // Hide
-                }
+      let userId = "{{ .UserID }}";
+
+      // Search Functionality
+      document.getElementById("search").addEventListener("keyup", function () {
+        const query = this.value.toLowerCase();
+        const contacts = document.querySelectorAll(".contact-item");
+
+        contacts.forEach((contact) => {
+          const name = contact
+            .querySelector("p strong")
+            .nextSibling.nodeValue.toLowerCase();
+          const email = contact
+            .querySelector("p:nth-child(2)")
+            .innerText.toLowerCase();
+
+          if (name.includes(query) || email.includes(query)) {
+            contact.style.display = ""; // Show
+          } else {
+            contact.style.display = "none"; // Hide
+          }
+        });
+      });
+
+      // Event listener for contact click
+      document
+        .getElementById("contact-list")
+        .addEventListener("click", function (event) {
+          const contactItem = event.target.closest(".contact-item");
+          if (contactItem) {
+            const contactId = contactItem.getAttribute("data-contact-id");
+            const username = contactItem.getAttribute("data-username");
+            const email = contactItem.getAttribute("data-email");
+
+            // Dynamically load chat.html with the selected contact's details
+            // loadChatTemplate(contactId, username, email);
+            loadChat(contactId, username, email);
+          }
+        });
+
+      // function loadChatTemplate(contactId, username, email) {
+      //     const chatContainer = document.getElementById("chat-container");
+
+      //     fetch(`/messages?user_id=${userId}&contact_id=${contactId}`)
+      //         .then((response) => {
+      //             if (!response.ok) throw new Error("Failed to load chat");
+      //             console.log("Messages loaded", response)
+      //             return response.text();
+      //         })
+      //         .then((html) => {
+      //             chatContainer.innerHTML = html;
+      //             console.log(`Loaded chat for contact: ${username}`);
+      //         })
+      //         .catch((err) => console.error(err));
+
+      //     chatContainer.innerHTML = "";
+      //     // <div class="profile-pic"></div>
+      //     // Add new chat template with dynamic data
+      //     chatContainer.innerHTML = `
+      //         <header class="chat-header">
+
+      //             <img src="/static/images/avatar.png" alt="No Chat Selected" class="default-chat-icon">
+      //             <div class="username">${username}</div>
+      //         </header>
+      //         <main class="chat-messages" id="chat-messages">
+      //             <!-- Messages will be dynamically added here -->
+      //         </main>
+      //         <footer class="chat-input">
+      //             <form id="message-form">
+      //                 <input type="text" id="message-input" placeholder="Type a message" required>
+      //                 <label for="attachment">
+      //                     <input type="file" id="attachment" style="display: none;">
+      //                     📎
+      //                 </label>
+      //                 <button type="submit">Send</button>
+      //             </form>
+      //         </footer>
+      //     `;
+
+      //     // Initialize WebSocket for this contact
+      //     initializeWebSocket(contactId);
+      // }
+
+      function loadChat(contactId, username, email) {
+        const chatContainer = document.getElementById("chat-container");
+        chatContainer.innerHTML = ""; // Clear existing chat
+
+        // Create chat header
+        const chatHeader = document.createElement("header");
+        chatHeader.classList.add("chat-header");
+        chatHeader.innerHTML = `
+        <img src="/static/images/avatar.png" alt="Chat Icon" class="default-chat-icon">
+        <div class="username">${username}</div>
+    `;
+        chatContainer.appendChild(chatHeader);
+
+        // Create chat messages container
+        const chatMessages = document.createElement("main");
+        chatMessages.classList.add("chat-messages");
+        chatMessages.id = "chat-messages";
+        chatContainer.appendChild(chatMessages);
+
+        // Create chat input footer
+        const chatFooter = document.createElement("footer");
+        chatFooter.classList.add("chat-input");
+        chatFooter.innerHTML = `
+        <form id="message-form">
+            <input type="text" id="message-input" placeholder="Type a message" required>
+            <label for="attachment">
+                <input type="file" id="attachment" style="display: none;">
+                📎
+            </label>
+            <button type="submit">Send</button>
+        </form>
+    `;
+        chatContainer.appendChild(chatFooter);
+
+        // Load messages from the server
+        fetch(`/messages?user_id=${userId}&contact_id=${contactId}`)
+          .then((response) => {
+            if (!response.ok) throw new Error("Failed to load messages");
+            return response.json();
+          })
+          .then((messages) => {
+            console.log("Messages", messages)
+            messages.forEach((message) => {
+              const messageBubble = document.createElement("div");
+              messageBubble.classList.add(
+                "message-bubble",
+                message.sender_id === userId ? "sent" : "received"
+              );
+              messageBubble.innerHTML = `
+                    <p>${message.content}</p>
+                    <span class="message-time">${new Date(
+                      message.created_at
+                    ).toLocaleTimeString()}</span>
+                `;
+              chatMessages.appendChild(messageBubble);
             });
-        });
-    
-        // Event listener for contact click
-        document.getElementById("contact-list").addEventListener("click", function (event) {
-            const contactItem = event.target.closest(".contact-item");
-            if (contactItem) {
-                const contactId = contactItem.getAttribute("data-contact-id");
-                const username = contactItem.getAttribute("data-username");
-                const email = contactItem.getAttribute("data-email");
-    
-                // Dynamically load chat.html with the selected contact's details
-                loadChatTemplate(contactId, username, email);
-            }
-        });
-    
-        function loadChatTemplate(contactId, username, email) {
-            const chatContainer = document.getElementById("chat-container");
-    
-            // Clear previous chat content
-            chatContainer.innerHTML = "";
-            // <div class="profile-pic"></div>    
-            // Add new chat template with dynamic data
-            chatContainer.innerHTML = `
-                <header class="chat-header">
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+          })
+          .catch((err) => console.error("Error loading messages:", err));
 
-                    <img src="/static/images/avatar.png" alt="No Chat Selected" class="default-chat-icon">
-                    <div class="username">${username}</div>
-                </header>
-                <main class="chat-messages" id="chat-messages">
-                    <!-- Messages will be dynamically added here -->
-                </main>
-                <footer class="chat-input">
-                    <form id="message-form">
-                        <input type="text" id="message-input" placeholder="Type a message" required>
-                        <label for="attachment">
-                            <input type="file" id="attachment" style="display: none;">
-                            📎
-                        </label>
-                        <button type="submit">Send</button>
-                    </form>
-                </footer>
+        // Initialize WebSocket for this contact
+        initializeWebSocket(contactId);
+      }
+
+      function initializeWebSocket(contactId) {
+        const ws = new WebSocket(
+          `ws://localhost:8080/ws/messages?user_id=${userId}`
+        );
+        const chatMessages = document.getElementById("chat-messages");
+        const messageForm = document.getElementById("message-form");
+        const messageInput = document.getElementById("message-input");
+
+        ws.onopen = () => {
+          console.log(
+            "WebSocket connection established for messaging-service."
+          );
+        };
+
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          const chatMessages = document.getElementById("chat-messages");
+          console.log(data);
+          if (data.type === SOCKET_EVENTS.NEW_MESSAGE_RECEIVED) {
+            if (
+              contactId === data.message.sender_id ||
+              contactId === data.message.receiver_id
+            ) {
+              const time = new Date(
+                data.message.created_at
+              ).toLocaleTimeString();
+              const messageBubble = document.createElement("div");
+              messageBubble.classList.add(
+                "message-bubble",
+                data.message.sender_id === userId ? "sent" : "received"
+              );
+              messageBubble.innerHTML = `
+                <p>${data.message.content}</p>
+                <span class="message-time">${time}</span>
             `;
-    
-            // Initialize WebSocket for this contact
-            initializeWebSocket(contactId);
-        }
-    
-        function initializeWebSocket(contactId) {
-            let userId = "{{ .UserID }}"
-            const ws = new WebSocket(`ws://localhost:8080/ws/messages?user_id=${userId}`);
-            const chatMessages = document.getElementById("chat-messages");
-            const messageForm = document.getElementById("message-form");
-            const messageInput = document.getElementById("message-input");
-    
-            ws.onopen = () => {
-                console.log("WebSocket connection established for messaging-service.");
-            };
-    
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                console.log(data)
-                if (data.type === SOCKET_EVENTS.NEW_MESSAGE_RECEIVED) {
-                    if (contactId === data.message.SenderID){
-                        const time = new Date().toLocaleTimeString();
-                    const messageBubble = document.createElement("div");
-                    messageBubble.classList.add("message-bubble", "received");
-                    messageBubble.innerHTML = `
-                        <p>${data.message.content}</p>
-                        <span class="message-time">${time}</span>
-                    `;
-                    chatMessages.appendChild(messageBubble);
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                    }
-                    else{
-                        showSnackbar("New message received")
+              chatMessages.appendChild(messageBubble);
+              chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to the bottom
+            } else {
+              showSnackbar("New message received from another contact");
+            }
+          }
+        };
 
-                    }
-                }
+        ws.onclose = () => {
+          console.log("WebSocket connection closed.");
+        };
+
+        ws.onerror = (error) => {
+          console.error("WebSocket error:", error);
+        };
+
+        messageForm.addEventListener("submit", (e) => {
+          e.preventDefault();
+          const content = messageInput.value.trim();
+          if (content) {
+            const payload = {
+              type: "send_message",
+              sender_id: userId, // Pass the logged-in user's ID
+              receiver_id: contactId,
+              content: content,
             };
-    
-            ws.onclose = () => {
-                console.log("WebSocket connection closed.");
-            };
-    
-            ws.onerror = (error) => {
-                console.error("WebSocket error:", error);
-            };
-    
-            messageForm.addEventListener("submit", (e) => {
-                e.preventDefault();
-                const content = messageInput.value.trim();
-                if (content) {
-                    const payload = {
-                        type: "send_message",
-                        sender_id: "{{ .UserID }}", // Pass the logged-in user's ID
-                        receiver_id: contactId,
-                        content: content,
-                    };
-    
-                    ws.send(JSON.stringify(payload));
-    
-                    const time = new Date().toLocaleTimeString();
-                    const messageBubble = document.createElement("div");
-                    messageBubble.classList.add("message-bubble", "sent");
-                    messageBubble.innerHTML = `
+
+            ws.send(JSON.stringify(payload));
+
+            const time = new Date().toLocaleTimeString();
+            const messageBubble = document.createElement("div");
+            messageBubble.classList.add("message-bubble", "sent");
+            messageBubble.innerHTML = `
                         <p>${content}</p>
                         <span class="message-time">${time}</span>
                     `;
-                    chatMessages.appendChild(messageBubble);
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                    messageInput.value = "";
-                }
-            });
-        }
+            chatMessages.appendChild(messageBubble);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            messageInput.value = "";
+          }
+        });
+      }
     </script>
-    
-</body>
+  </body>
 </html>

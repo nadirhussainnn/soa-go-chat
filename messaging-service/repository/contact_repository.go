@@ -9,7 +9,7 @@ import (
 
 type MessageRepository interface {
 	CreateNewMessage(req *models.Message) error
-	GetMessagesByUserID(userID uuid.UUID) ([]models.Message, error)
+	GetMessagesByUserID(userID, contactID uuid.UUID) ([]models.Message, error)
 }
 
 type messageRepository struct {
@@ -24,8 +24,9 @@ func (r *messageRepository) CreateNewMessage(req *models.Message) error {
 	return r.db.Create(req).Error
 }
 
-func (r *messageRepository) GetMessagesByUserID(userID uuid.UUID) ([]models.Message, error) {
+func (r *messageRepository) GetMessagesByUserID(userID, contactID uuid.UUID) ([]models.Message, error) {
 	var messages []models.Message
-	err := r.db.Where("sender_id = ? OR receiver_id = ?", userID, userID).Find(&messages).Error
+	err := r.db.Where("(sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)",
+		userID, contactID, contactID, userID).Find(&messages).Error
 	return messages, err
 }

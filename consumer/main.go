@@ -71,8 +71,9 @@ func main() {
 	http.Handle("/dashboard", authMiddleware.RequireAuth(http.HandlerFunc(auth.HandleDashboard)))
 	http.Handle("/contacts", authMiddleware.RequireAuth(http.HandlerFunc(auth.HandleContacts)))
 	http.Handle("/requests", authMiddleware.RequireAuth(http.HandlerFunc(auth.HandleRequests)))
-
 	http.Handle("/search", authMiddleware.RequireAuth(http.HandlerFunc(auth.HandleSearch)))
+
+	http.Handle("/messages", authMiddleware.RequireAuth(http.HandlerFunc(auth.HandleMessages)))
 
 	// Start the HTTP server
 	log.Println("Consumer service running on port", PORT)

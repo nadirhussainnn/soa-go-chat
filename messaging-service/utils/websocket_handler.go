@@ -83,7 +83,7 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 
 func (h *WebSocketHandler) HandleNewMessage(senderID, receiverID, content string) {
 	// Create and save the message in the database
-	log.Print("Sending message --")
+	log.Print("Sending message --", content)
 	message := models.Message{
 		ID:         uuid.New(),
 		SenderID:   uuid.MustParse(senderID),
