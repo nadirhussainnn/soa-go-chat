@@ -240,7 +240,7 @@ func (h *WebSocketHandler) handleCompleteFile(chunkedFile *ChunkedFile) {
 	}
 
 	// Save the file on the server
-	filePath, err := SaveFile(chunkedFile.FileName, completeFile)
+	uniqueFileName, originalFileName, err := SaveFile(chunkedFile.FileName, completeFile)
 	if err != nil {
 		log.Printf("Failed to save file: %v", err)
 		return
@@ -252,8 +252,8 @@ func (h *WebSocketHandler) handleCompleteFile(chunkedFile *ChunkedFile) {
 		SenderID:     uuid.MustParse(chunkedFile.SenderID),
 		ReceiverID:   uuid.MustParse(chunkedFile.ReceiverID),
 		MessageType:  "file",
-		FilePath:     filePath,
-		FileName:     chunkedFile.FileName,
+		FilePath:     uniqueFileName,
+		FileName:     originalFileName,
 		FileMimeType: http.DetectContentType(completeFile),
 		CreatedAt:    time.Now(),
 	}

@@ -33,21 +33,20 @@
         max-height: 70px !important;
       }
       .progress-bar {
-  width: 100%;
-  background-color: #f3f3f3;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  overflow: hidden;
-  height: 8px;
-  margin-top: 5px;
-}
+        width: 100%;
+        background-color: #f3f3f3;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        overflow: hidden;
+        height: 8px;
+        margin-top: 5px;
+      }
 
-.progress {
-  height: 100%;
-  background-color: #a7c957;
-  transition: width 0.2s ease;
-}
-
+      .progress {
+        height: 100%;
+        background-color: #a7c957;
+        transition: width 0.2s ease;
+      }
     </style>
   </head>
   <body>
@@ -191,6 +190,7 @@
           .then((response) => response.json())
           .then((messages) => {
             messages.forEach((message) => {
+              console.log("Messages", message);
               appendMessageBubble(message);
             });
             chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -208,10 +208,12 @@
         );
 
         if (message.message_type === "file") {
+            const fileDownloadUrl = `http://localhost:8080/messages/file/?message_id=${message.id}`;
+
           messageBubble.innerHTML = `
-      <p>📎 <a href="${message.file_path}" download="${message.file_name}">${
-            message.file_name
-          }</a></p>
+      <p>📎 <a href="${fileDownloadUrl}" download="${message.file_name}" target="_blank">
+          ${message.file_name}
+        </a></p>
       <span class="message-time">${new Date(
         message.created_at
       ).toLocaleTimeString()}</span>
@@ -266,22 +268,23 @@
             let currentChunk = 0;
 
             // Create the file bubble
-      const fileBubble = document.createElement("div");
-      fileBubble.classList.add("message-bubble", "sent");
-      fileBubble.setAttribute("data-file-id", file.name); // Add data-file-id for easier tracking
-      fileBubble.innerHTML = `
+            const fileBubble = document.createElement("div");
+            fileBubble.classList.add("message-bubble", "sent");
+            fileBubble.setAttribute("data-file-id", file.name); // Add data-file-id for easier tracking
+            fileBubble.innerHTML = `
         <p>📎 ${file.name} <span class="upload-status">(Uploading...)</span></p>
         <div class="progress-bar">
           <div class="progress" style="width: 0%;"></div>
         </div>
       `;
-      chatMessages.appendChild(fileBubble);
+            chatMessages.appendChild(fileBubble);
 
-      const progressBar = fileBubble.querySelector(".progress");
+            const progressBar = fileBubble.querySelector(".progress");
 
             const sendChunk = () => {
               if (currentChunk >= totalChunks) {
-                fileBubble.querySelector(".upload-status").textContent = "(Uploaded)";
+                fileBubble.querySelector(".upload-status").textContent =
+                  "(Uploaded)";
 
                 return;
               }
@@ -307,9 +310,9 @@
 
                 ws.send(JSON.stringify(payload));
 
-                const progressPercentage = ((currentChunk + 1) / totalChunks) * 100;
+                const progressPercentage =
+                  ((currentChunk + 1) / totalChunks) * 100;
                 progressBar.style.width = `${progressPercentage}%`;
-
 
                 currentChunk++;
                 setTimeout(sendChunk, 100);
@@ -328,10 +331,10 @@
         const data = JSON.parse(event.data);
 
         if (data.type === SOCKET_EVENTS.MESSAGE_SENT_ACK) {
-            console.log("Message sent to user", data)
+          console.log("Message sent to user", data);
         }
         if (data.type === SOCKET_EVENTS.FILE_SENT_ACK) {
-            console.log("File sent to user", data)
+          console.log("File sent to user", data);
         }
         if (data.type === SOCKET_EVENTS.NEW_MESSAGE_RECEIVED) {
           if (
@@ -344,20 +347,19 @@
           }
         }
         if (data.type === SOCKET_EVENTS.FILE_UPLOAD_PROGRESS) {
-            console.log("data.progress", data.progress)
-            const fileBubble = document.querySelector(
-    `.message-bubble.sent[data-file-id="${data.file_id}"]`
-  );
-            console.log("fileBubble ", fileBubble)
-  if (fileBubble) {
-    const progressBar = fileBubble.querySelector(".progress");
-    console.log("progressBar", progressBar)
-    if (progressBar) {
-      progressBar.style.width = `${data.progress}%`;
-      console.log("progressBar width", progressBar.style.width)
-
-    }
-  }
+          console.log("data.progress", data.progress);
+          const fileBubble = document.querySelector(
+            `.message-bubble.sent[data-file-id="${data.file_id}"]`
+          );
+          console.log("fileBubble ", fileBubble);
+          if (fileBubble) {
+            const progressBar = fileBubble.querySelector(".progress");
+            console.log("progressBar", progressBar);
+            if (progressBar) {
+              progressBar.style.width = `${data.progress}%`;
+              console.log("progressBar width", progressBar.style.width);
+            }
+          }
         }
         if (data.type === SOCKET_EVENTS.NEW_FILE_RECEIVED) {
           if (
@@ -367,7 +369,6 @@
             appendMessageBubble(data.message);
           }
         }
-
       };
 
       ws.onerror = (error) => {
