@@ -54,7 +54,6 @@ func DecodeJWT(amqpChannel *amqp.Channel, sessionToken string) (*DecodeJWTRespon
 		log.Printf("Failed to publish JWT decode request: %v", err)
 		return nil, err
 	}
-	log.Print("Published JWT decode request")
 	// Consume the response from the auth-service
 	msgs, err := amqpChannel.Consume(
 		AUTH_JWT_DECODE_RESPONSE_MESSAGING, // Queue
@@ -77,7 +76,6 @@ func DecodeJWT(amqpChannel *amqp.Channel, sessionToken string) (*DecodeJWTRespon
 			log.Printf("Failed to unmarshal JWT decode response: %v", err)
 			continue
 		}
-		log.Print("Message: ", d.Body)
 		return &response, nil
 	}
 

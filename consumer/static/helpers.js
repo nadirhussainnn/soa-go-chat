@@ -9,9 +9,11 @@ let SOCKET_EVENTS ={
     // For messaging app
     MESSAGE_SENT_ACK : "MESSAGE_SENT_ACK",
     NEW_MESSAGE_RECEIVED : "NEW_MESSAGE_RECEIVED",
+    NEW_FILE_RECEIVED : "NEW_FILE_RECEIVED",
+    FILE_SENT_ACK : "FILE_SENT_ACK",
+    FILE_UPLOAD_PROGRESS: "FILE_UPLOAD_PROGRESS",
 
 }
-
 function showSnackbar(message) {
     var x = document.getElementById("snackbar");
     x.className = "show";
