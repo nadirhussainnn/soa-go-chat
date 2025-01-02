@@ -32,6 +32,21 @@
         max-width: 70px !important;
         max-height: 70px !important;
       }
+      .progress-bar {
+        width: 100%;
+        background-color: #f3f3f3;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        overflow: hidden;
+        height: 8px;
+        margin-top: 5px;
+      }
+
+      .progress {
+        height: 100%;
+        background-color: #a7c957;
+        transition: width 0.2s ease;
+      }
     </style>
   </head>
   <body>
@@ -86,29 +101,31 @@
     </div>
 
     <script src="/static/helpers.js"></script>
+
     <script>
       let userId = "{{ .UserID }}";
+      let contactId, username, email;
+      let chatMessages, messageForm, messageInput;
 
-   
-      // Search Functionality
-document.getElementById("search").addEventListener("keyup", function () {
-    const query = this.value.toLowerCase().trim();
-    const contacts = document.querySelectorAll(".contact-item");
+      // Global WebSocket connection
+      const ws = new WebSocket(
+        `ws://localhost:8080/ws/messages?user_id=${userId}`
+      );
 
-    contacts.forEach((contact) => {
-        // Get the name and email text from the contact element
-        const name = contact.getAttribute("data-username").toLowerCase();
-        const email = contact.getAttribute("data-email").toLowerCase();
+      document.getElementById("search").addEventListener("keyup", function () {
+        const query = this.value.toLowerCase().trim();
+        const contacts = document.querySelectorAll(".contact-item");
 
-        // Check if the query matches either the name or the email
-        if (name.includes(query) || email.includes(query)) {
-            contact.style.display = ""; // Show the contact
-        } else {
-            contact.style.display = "none"; // Hide the contact
-        }
-    });
-});
-
+        contacts.forEach((contact) => {
+          const name = contact.getAttribute("data-username").toLowerCase();
+          const email = contact.getAttribute("data-email").toLowerCase();
+          if (name.includes(query) || email.includes(query)) {
+            contact.style.display = "";
+          } else {
+            contact.style.display = "none";
+          }
+        });
+      });
 
       // Event listener for contact click
       document
@@ -116,18 +133,14 @@ document.getElementById("search").addEventListener("keyup", function () {
         .addEventListener("click", function (event) {
           const contactItem = event.target.closest(".contact-item");
           if (contactItem) {
-            const contactId = contactItem.getAttribute("data-contact-id");
-            const username = contactItem.getAttribute("data-username");
-            const email = contactItem.getAttribute("data-email");
-
-            // Dynamically load chat.html with the selected contact's details
-            // loadChatTemplate(contactId, username, email);
-            loadChat(contactId, username, email);
+            contactId = contactItem.getAttribute("data-contact-id");
+            username = contactItem.getAttribute("data-username");
+            email = contactItem.getAttribute("data-email");
+            loadChat();
           }
         });
 
-
-      function loadChat(contactId, username, email) {
+      function loadChat() {
         const chatContainer = document.getElementById("chat-container");
         chatContainer.innerHTML = ""; // Clear existing chat
 
@@ -135,13 +148,13 @@ document.getElementById("search").addEventListener("keyup", function () {
         const chatHeader = document.createElement("header");
         chatHeader.classList.add("chat-header");
         chatHeader.innerHTML = `
-        <img src="/static/images/avatar.png" alt="Chat Icon" class="default-chat-icon">
-        <div class="username">${username}</div>
-    `;
+    <img src="/static/images/avatar.png" alt="Chat Icon" class="default-chat-icon">
+    <div class="username">${username}</div>
+  `;
         chatContainer.appendChild(chatHeader);
 
         // Create chat messages container
-        const chatMessages = document.createElement("main");
+        chatMessages = document.createElement("main");
         chatMessages.classList.add("chat-messages");
         chatMessages.id = "chat-messages";
         chatContainer.appendChild(chatMessages);
@@ -150,124 +163,221 @@ document.getElementById("search").addEventListener("keyup", function () {
         const chatFooter = document.createElement("footer");
         chatFooter.classList.add("chat-input");
         chatFooter.innerHTML = `
-        <form id="message-form">
-            <input type="text" id="message-input" placeholder="Type a message" required>
-            <label for="attachment">
-                <input type="file" id="attachment" style="display: none;">
-                📎
-            </label>
-            <button type="submit">Send</button>
-        </form>
-    `;
+    <form id="message-form">
+        <input type="text" id="message-input" placeholder="Type a message" required>
+        <label for="attachment">
+            <input type="file" id="attachment" style="display: none;">
+            📎
+        </label>
+        <button type="submit">Send</button>
+    </form>
+  `;
         chatContainer.appendChild(chatFooter);
+
+        // Update form and input references
+        messageForm = document.getElementById("message-form");
+        messageInput = document.getElementById("message-input");
+
+        // Add form submit event listener
+        if (messageForm) {
+          messageForm.addEventListener("submit", handleMessageSubmit);
+        }
+
+        handleFileUpload();
 
         // Load messages from the server
         fetch(`/messages?user_id=${userId}&contact_id=${contactId}`)
-          .then((response) => {
-            if (!response.ok) throw new Error("Failed to load messages");
-            return response.json();
-          })
+          .then((response) => response.json())
           .then((messages) => {
-            console.log("Messages", messages)
             messages.forEach((message) => {
-              const messageBubble = document.createElement("div");
-              messageBubble.classList.add(
-                "message-bubble",
-                message.sender_id === userId ? "sent" : "received"
-              );
-              messageBubble.innerHTML = `
-                    <p>${message.content}</p>
-                    <span class="message-time">${new Date(
-                      message.created_at
-                    ).toLocaleTimeString()}</span>
-                `;
-              chatMessages.appendChild(messageBubble);
+              console.log("Messages", message);
+              appendMessageBubble(message);
             });
             chatMessages.scrollTop = chatMessages.scrollHeight;
           })
           .catch((err) => console.error("Error loading messages:", err));
-
-        // Initialize WebSocket for this contact
-        initializeWebSocket(contactId);
       }
 
-      function initializeWebSocket(contactId) {
-        const ws = new WebSocket(
-          `ws://localhost:8080/ws/messages?user_id=${userId}`
+      function appendMessageBubble(message) {
+        const messageBubble = document.createElement("div");
+        const isSender = message.sender_id === userId;
+
+        messageBubble.classList.add(
+          "message-bubble",
+          isSender ? "sent" : "received"
         );
-        const chatMessages = document.getElementById("chat-messages");
-        const messageForm = document.getElementById("message-form");
-        const messageInput = document.getElementById("message-input");
 
-        ws.onopen = () => {
-          console.log(
-            "WebSocket connection established for messaging-service."
-          );
-        };
+        if (message.message_type === "file") {
+            const fileDownloadUrl = `http://localhost:8080/messages/file/?message_id=${message.id}`;
 
-        ws.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-          const chatMessages = document.getElementById("chat-messages");
-          console.log(data);
-          if (data.type === SOCKET_EVENTS.NEW_MESSAGE_RECEIVED) {
-            if (
-              contactId === data.message.sender_id ||
-              contactId === data.message.receiver_id
-            ) {
-              const time = new Date(
-                data.message.created_at
-              ).toLocaleTimeString();
-              const messageBubble = document.createElement("div");
-              messageBubble.classList.add(
-                "message-bubble",
-                data.message.sender_id === userId ? "sent" : "received"
-              );
-              messageBubble.innerHTML = `
-                <p>${data.message.content}</p>
-                <span class="message-time">${time}</span>
-            `;
-              chatMessages.appendChild(messageBubble);
-              chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to the bottom
-            } else {
-              showSnackbar("New message received from another contact");
-            }
-          }
-        };
+          messageBubble.innerHTML = `
+      <p>📎 <a href="${fileDownloadUrl}" download="${message.file_name}" target="_blank">
+          ${message.file_name}
+        </a></p>
+      <span class="message-time">${new Date(
+        message.created_at
+      ).toLocaleTimeString()}</span>
+    `;
+        } else {
+          messageBubble.innerHTML = `
+      <p>${message.content}</p>
+      <span class="message-time">${new Date(
+        message.created_at
+      ).toLocaleTimeString()}</span>
+    `;
+        }
 
-        ws.onclose = () => {
-          console.log("WebSocket connection closed.");
-        };
+        chatMessages.appendChild(messageBubble);
+      }
 
-        ws.onerror = (error) => {
-          console.error("WebSocket error:", error);
-        };
+      function handleMessageSubmit(event) {
+        event.preventDefault();
+        const content = messageInput.value.trim();
+        if (content && contactId) {
+          const payload = {
+            type: "send_message",
+            sender_id: userId,
+            receiver_id: contactId,
+            content: content,
+          };
 
-        messageForm.addEventListener("submit", (e) => {
-          e.preventDefault();
-          const content = messageInput.value.trim();
-          if (content) {
-            const payload = {
-              type: "send_message",
-              sender_id: userId, // Pass the logged-in user's ID
-              receiver_id: contactId,
-              content: content,
+          ws.send(JSON.stringify(payload));
+
+          const message = {
+            sender_id: userId,
+            receiver_id: contactId,
+            content: content,
+            created_at: new Date().toISOString(),
+          };
+          appendMessageBubble(message);
+
+          messageInput.value = "";
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+      }
+
+      function handleFileUpload() {
+        const attachmentInput = document.getElementById("attachment");
+        if (attachmentInput) {
+          attachmentInput.addEventListener("change", (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const chunkSize = 1024 * 1024; // 1 MB
+            const totalChunks = Math.ceil(file.size / chunkSize);
+            let currentChunk = 0;
+
+            // Create the file bubble
+            const fileBubble = document.createElement("div");
+            fileBubble.classList.add("message-bubble", "sent");
+            fileBubble.setAttribute("data-file-id", file.name); // Add data-file-id for easier tracking
+            fileBubble.innerHTML = `
+        <p>📎 ${file.name} <span class="upload-status">(Uploading...)</span></p>
+        <div class="progress-bar">
+          <div class="progress" style="width: 0%;"></div>
+        </div>
+      `;
+            chatMessages.appendChild(fileBubble);
+
+            const progressBar = fileBubble.querySelector(".progress");
+
+            const sendChunk = () => {
+              if (currentChunk >= totalChunks) {
+                fileBubble.querySelector(".upload-status").textContent =
+                  "(Uploaded)";
+
+                return;
+              }
+
+              const start = currentChunk * chunkSize;
+              const end = Math.min(file.size, start + chunkSize);
+              const blob = file.slice(start, end);
+
+              const reader = new FileReader();
+              reader.onload = () => {
+                const payload = {
+                  type: "send_file_chunk",
+                  sender_id: userId,
+                  receiver_id: contactId,
+                  file_id: file.name,
+                  file_name: file.name,
+                  chunk_index: currentChunk,
+                  total_chunks: totalChunks,
+                  chunk_data: btoa(
+                    String.fromCharCode(...new Uint8Array(reader.result))
+                  ),
+                };
+
+                ws.send(JSON.stringify(payload));
+
+                const progressPercentage =
+                  ((currentChunk + 1) / totalChunks) * 100;
+                progressBar.style.width = `${progressPercentage}%`;
+
+                currentChunk++;
+                setTimeout(sendChunk, 100);
+              };
+
+              reader.readAsArrayBuffer(blob);
             };
 
-            ws.send(JSON.stringify(payload));
-
-            const time = new Date().toLocaleTimeString();
-            const messageBubble = document.createElement("div");
-            messageBubble.classList.add("message-bubble", "sent");
-            messageBubble.innerHTML = `
-                        <p>${content}</p>
-                        <span class="message-time">${time}</span>
-                    `;
-            chatMessages.appendChild(messageBubble);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-            messageInput.value = "";
-          }
-        });
+            sendChunk();
+          });
+        }
       }
+
+      // WebSocket Event Listeners
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === SOCKET_EVENTS.MESSAGE_SENT_ACK) {
+          console.log("Message sent to user", data);
+        }
+        if (data.type === SOCKET_EVENTS.FILE_SENT_ACK) {
+          console.log("File sent to user", data);
+        }
+        if (data.type === SOCKET_EVENTS.NEW_MESSAGE_RECEIVED) {
+          if (
+            data.message.receiver_id === contactId ||
+            data.message.sender_id === contactId
+          ) {
+            appendMessageBubble(data.message);
+          } else {
+            showSnackbar("New message from another contact.");
+          }
+        }
+        if (data.type === SOCKET_EVENTS.FILE_UPLOAD_PROGRESS) {
+          console.log("data.progress", data.progress);
+          const fileBubble = document.querySelector(
+            `.message-bubble.sent[data-file-id="${data.file_id}"]`
+          );
+          console.log("fileBubble ", fileBubble);
+          if (fileBubble) {
+            const progressBar = fileBubble.querySelector(".progress");
+            console.log("progressBar", progressBar);
+            if (progressBar) {
+              progressBar.style.width = `${data.progress}%`;
+              console.log("progressBar width", progressBar.style.width);
+            }
+          }
+        }
+        if (data.type === SOCKET_EVENTS.NEW_FILE_RECEIVED) {
+          if (
+            data.message.receiver_id === contactId ||
+            data.message.sender_id === contactId
+          ) {
+            appendMessageBubble(data.message);
+          }
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+      };
+
+      ws.onclose = () => {
+        console.log("WebSocket connection closed.");
+      };
     </script>
   </body>
 </html>

@@ -484,11 +484,15 @@ func HandleSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 type Message struct {
-	ID         string `json:"id"`
-	SenderID   string `json:"sender_id"`
-	ReceiverID string `json:"receiver_id"`
-	Content    string `json:"content"`
-	CreatedAt  string `json:"created_at"`
+	ID           string `json:"id"`
+	SenderID     string `json:"sender_id"`
+	ReceiverID   string `json:"receiver_id"`
+	Content      string `json:"content"`
+	CreatedAt    string `json:"created_at"`
+	MessageType  string `json:"message_type"` // 'text', 'file'
+	FilePath     string `json:"file_path"`    // Path to the file on the server
+	FileName     string `json:"file_name"`    // Name of the file
+	FileMimeType string `json:"file_mime_type"`
 }
 
 // HandleMessages fetches messages between the logged-in user and a selected contact

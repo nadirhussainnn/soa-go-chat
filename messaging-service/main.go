@@ -54,6 +54,7 @@ func main() {
 
 	http.HandleFunc("/ws", webSocketHandler.HandleWebSocket)
 	http.Handle("/", authMiddleware.RequireAuth(http.HandlerFunc(handler.FetchMessages)))
+	http.Handle("/file/", authMiddleware.RequireAuth(http.HandlerFunc(handler.ServeFile)))
 
 	log.Println("Messaging service running on port", PORT)
 	log.Fatal(http.ListenAndServe(":"+PORT, nil))
