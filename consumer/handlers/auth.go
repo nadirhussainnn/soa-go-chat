@@ -403,7 +403,6 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	defer contactsResp.Body.Close()
 
-	log.Print("Contacts response", contactsResp.Body)
 	if contactsResp.StatusCode != http.StatusOK {
 		log.Printf("[HandleLogin] Error from contacts-service for user %s: %s", userID, contactsResp.Status)
 		http.Error(w, "Failed to fetch contacts", http.StatusInternalServerError)
@@ -434,9 +433,10 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	// Pass contacts data to the template
 	tmpl := template.Must(template.ParseGlob("templates/*.html"))
 	err = tmpl.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
-		"Contacts":     data.Contacts,
-		"UserID":       userID,
-		"WebSocketURL": os.Getenv("GATEWAY_WS_URL"),
+		"Contacts":       data.Contacts,
+		"UserID":         userID,
+		"WebSocketURL":   os.Getenv("GATEWAY_WS_URL"),
+		"GatewayHttpURL": os.Getenv("GATEWAY_URL"),
 	})
 
 	if err != nil {
