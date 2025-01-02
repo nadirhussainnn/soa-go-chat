@@ -7,9 +7,9 @@ import (
 )
 
 type Message struct {
-	ID         uuid.UUID `gorm:"type:uuid;primaryKey"`
-	SenderID   uuid.UUID `gorm:"type:uuid;not null"`
-	ReceiverID uuid.UUID `gorm:"type:uuid;not null"`
-	Content    string    `gorm:"type:text;not null"`
-	CreatedAt  time.Time `gorm:"autoCreateTime"`
+	ID         uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
+	SenderID   uuid.UUID `gorm:"type:uuid;not null" json:"sender_id"`
+	ReceiverID uuid.UUID `gorm:"type:uuid;not null" json:"receiver_id"`
+	Content    string    `json:"content"`
+	CreatedAt  time.Time `gorm:"autoCreateTime" json:"created_at"`
 }

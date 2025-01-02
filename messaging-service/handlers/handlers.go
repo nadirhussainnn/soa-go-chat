@@ -12,28 +12,44 @@ import (
 )
 
 type MessageHandler struct {
-	Repo             repository.MessagesRepository
-	WebSocketHandler *utils.WebSocketHandler // Add WebSocketHandler
-	AMQPChannel      *amqp.Channel           // Add AMQPChannel
+	Repo             repository.MessageRepository
+	WebSocketHandler *utils.WebSocketHandler
+	AMQPConn         *amqp.Connection // Store RabbitMQ connection
 }
 
-func (h *MessageHandler) GetMessages(w http.ResponseWriter, r *http.Request) {
+func (h *MessageHandler) FetchMessages(w http.ResponseWriter, r *http.Request) {
+	userIdStr := r.URL.Query().Get("user_id")
+	contactIdStr := r.URL.Query().Get("contact_id")
 
-	log.Println("Getting messaging", r.URL)
-	query := r.URL.Query().Get("user_id") // Get the search query from the request
-
-	if query == "" {
-		http.Error(w, "Search query is required", http.StatusBadRequest)
+	if userIdStr == "" || contactIdStr == "" {
+		http.Error(w, "user_id and contact_id are required", http.StatusBadRequest)
 		return
 	}
 
-	messaging, err := h.Repo.GetMessagesByUserID(uuid.MustParse(query))
+	userID, err := uuid.Parse(userIdStr)
 	if err != nil {
-		http.Error(w, "Failed to search Users", http.StatusInternalServerError)
+		http.Error(w, "Invalid user_id format", http.StatusBadRequest)
 		return
 	}
 
-	// Send the matching messaging as JSON
+	contactID, err := uuid.Parse(contactIdStr)
+	if err != nil {
+		http.Error(w, "Invalid contact_id format", http.StatusBadRequest)
+		return
+	}
+
+	// Fetch messages for the user
+	messages, err := h.Repo.GetMessagesByUserID(userID, contactID)
+	if err != nil {
+		log.Printf("Failed to fetch messages: %v", err)
+		http.Error(w, "Failed to fetch messages", http.StatusInternalServerError)
+		return
+	}
+
+	log.Print(messages[0])
+	// Return messages in response
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(messaging)
+	if err := json.NewEncoder(w).Encode(messages); err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }

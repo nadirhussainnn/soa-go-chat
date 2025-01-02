@@ -1,146 +1,273 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Go Chat - Dashboard</title>
-    <link rel="stylesheet" href="/static/index.css">
-    <link rel="stylesheet" href="/static/dashboard.css">
+    <link rel="stylesheet" href="/static/index.css" />
+    <link rel="stylesheet" href="/static/dashboard.css" />
+    <link rel="stylesheet" href="/static/chat.css" />
+    <link rel="stylesheet" href="/static/snackbar.css" />
+
     <style>
-        .list-item {
-            padding: 15px;
-            border: 1px solid #ddd;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            background-color: #f9f9f9;
-        }
-        .hidden {
-            display: none;
-        }
-        .request-item {
-            display: flex;
-            flex-direction: column;
-            align-items: start;
-        }
-        .action-buttons {
-            margin-top: 10px;
-        }
-        .accept-btn {
-            background-color: #28a745;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            margin-right: 5px;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-        .reject-btn {
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-        .accept-btn:hover {
-            background-color: #218838;
-        }
-        .reject-btn:hover {
-            background-color: #c82333;
-        }
-        .filter-btn.active {
-            font-weight: bold;
-            text-decoration: underline;
-        }
+      .list-item {
+        padding: 15px;
+        border: 1px solid #ddd;
+        margin-bottom: 10px;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .list-item:hover {
+        border-color: #0078d7;
+      }
+      .hidden {
+        display: none;
+      }
+
+      .default-chat-icon {
+        max-width: 70px !important;
+        max-height: 70px !important;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <!-- Include Header -->
     {{ template "dashboard_header.html" }}
 
-    <!-- Main Content -->
-    <div class="contact-chat-container">
-        <!-- Contact List -->
-        <div class="contact-list">
-            <div class="search-component">
-                <input type="text" id="search" placeholder="Search...">
-            </div>
-            <ul id="contact-list" class="list-items">
-                <!-- Contacts List -->
-                {{ range .Contacts }}
-                <li class="list-item contact-item">
-                    <p><strong>Name:</strong> {{ .Details.Username }}</p>
-                    <p><strong>Email:</strong> {{ .Details.Email }}</p>
-                </li>
-                {{ end }}
-            </ul>
-        </div>
+    <div id="snackbar">Some text some message..</div>
 
-        <!-- Chat Container -->
-        <div class="chat-container">
-            {{ template "chat.html" }}
+    <div class="contact-chat-container">
+      <!-- Contact List -->
+      <div class="contact-list">
+        <div class="search-component">
+          <input type="text" id="search" placeholder="Search..." />
         </div>
+        <ul id="contact-list" class="list-items">
+          <!-- Contacts List -->
+          {{ range .Contacts }}
+          <li
+            class="list-item contact-item"
+            data-contact-id="{{ .Details.UserID }}"
+            data-username="{{ .Details.Username }}"
+            data-email="{{ .Details.Email }}"
+          >
+            <img
+              src="/static/images/avatar.png"
+              alt="No Chat Selected"
+              class="default-chat-icon"
+            />
+
+            <div>
+              <p
+                style="
+                  color: #0078d7;
+                  font-size: 1.2rem;
+                  text-transform: capitalize;
+                  padding: 0;
+                "
+              >
+                {{ .Details.Username }}
+              </p>
+              <p>{{ .Details.Email }}</p>
+            </div>
+          </li>
+          {{ end }}
+        </ul>
+      </div>
+
+      <!-- Chat Container -->
+      <div class="chat-container" id="chat-container">
+        {{ template "no_chat.html" }}
+      </div>
     </div>
 
+    <script src="/static/helpers.js"></script>
     <script>
+      let userId = "{{ .UserID }}";
 
-         // Search Functionality
-    document.getElementById("search").addEventListener("keyup", function () {
-        const query = this.value.toLowerCase();
-        const contacts = document.querySelectorAll(".contact-item");
+   
+      // Search Functionality
+document.getElementById("search").addEventListener("keyup", function () {
+    const query = this.value.toLowerCase().trim();
+    const contacts = document.querySelectorAll(".contact-item");
 
-        contacts.forEach((contact) => {
-            const name = contact.querySelector("p strong").nextSibling.nodeValue.toLowerCase();
-            const email = contact.querySelector("p:nth-child(2)").innerText.toLowerCase();
+    contacts.forEach((contact) => {
+        // Get the name and email text from the contact element
+        const name = contact.getAttribute("data-username").toLowerCase();
+        const email = contact.getAttribute("data-email").toLowerCase();
 
-            if (name.includes(query) || email.includes(query)) {
-                contact.style.display = ""; // Show
-            } else {
-                contact.style.display = "none"; // Hide
-            }
-        });
+        // Check if the query matches either the name or the email
+        if (name.includes(query) || email.includes(query)) {
+            contact.style.display = ""; // Show the contact
+        } else {
+            contact.style.display = "none"; // Hide the contact
+        }
     });
+});
 
-        let userId = "{{ .UserID }}";
-        // WebSocket connection
-        const ws = new WebSocket(`ws://localhost:8080/ws/contacts?user_id=${userId}`);
+
+      // Event listener for contact click
+      document
+        .getElementById("contact-list")
+        .addEventListener("click", function (event) {
+          const contactItem = event.target.closest(".contact-item");
+          if (contactItem) {
+            const contactId = contactItem.getAttribute("data-contact-id");
+            const username = contactItem.getAttribute("data-username");
+            const email = contactItem.getAttribute("data-email");
+
+            // Dynamically load chat.html with the selected contact's details
+            // loadChatTemplate(contactId, username, email);
+            loadChat(contactId, username, email);
+          }
+        });
+
+
+      function loadChat(contactId, username, email) {
+        const chatContainer = document.getElementById("chat-container");
+        chatContainer.innerHTML = ""; // Clear existing chat
+
+        // Create chat header
+        const chatHeader = document.createElement("header");
+        chatHeader.classList.add("chat-header");
+        chatHeader.innerHTML = `
+        <img src="/static/images/avatar.png" alt="Chat Icon" class="default-chat-icon">
+        <div class="username">${username}</div>
+    `;
+        chatContainer.appendChild(chatHeader);
+
+        // Create chat messages container
+        const chatMessages = document.createElement("main");
+        chatMessages.classList.add("chat-messages");
+        chatMessages.id = "chat-messages";
+        chatContainer.appendChild(chatMessages);
+
+        // Create chat input footer
+        const chatFooter = document.createElement("footer");
+        chatFooter.classList.add("chat-input");
+        chatFooter.innerHTML = `
+        <form id="message-form">
+            <input type="text" id="message-input" placeholder="Type a message" required>
+            <label for="attachment">
+                <input type="file" id="attachment" style="display: none;">
+                📎
+            </label>
+            <button type="submit">Send</button>
+        </form>
+    `;
+        chatContainer.appendChild(chatFooter);
+
+        // Load messages from the server
+        fetch(`/messages?user_id=${userId}&contact_id=${contactId}`)
+          .then((response) => {
+            if (!response.ok) throw new Error("Failed to load messages");
+            return response.json();
+          })
+          .then((messages) => {
+            console.log("Messages", messages)
+            messages.forEach((message) => {
+              const messageBubble = document.createElement("div");
+              messageBubble.classList.add(
+                "message-bubble",
+                message.sender_id === userId ? "sent" : "received"
+              );
+              messageBubble.innerHTML = `
+                    <p>${message.content}</p>
+                    <span class="message-time">${new Date(
+                      message.created_at
+                    ).toLocaleTimeString()}</span>
+                `;
+              chatMessages.appendChild(messageBubble);
+            });
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+          })
+          .catch((err) => console.error("Error loading messages:", err));
+
+        // Initialize WebSocket for this contact
+        initializeWebSocket(contactId);
+      }
+
+      function initializeWebSocket(contactId) {
+        const ws = new WebSocket(
+          `ws://localhost:8080/ws/messages?user_id=${userId}`
+        );
+        const chatMessages = document.getElementById("chat-messages");
+        const messageForm = document.getElementById("message-form");
+        const messageInput = document.getElementById("message-input");
 
         ws.onopen = () => {
-            console.log("WebSocket connection established.");
+          console.log(
+            "WebSocket connection established for messaging-service."
+          );
         };
 
         ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-
-            if (data.type === "contact_request_update") {
-                const requestElement = document.querySelector(`[data-request-id="${data.id}"]`);
-
-                if (requestElement) {
-                    requestElement.remove();
-
-                    if (data.action === "accept") {
-                        const contactList = document.querySelector(".list-items");
-                        const contactItem = document.createElement("li");
-                        contactItem.classList.add("list-item", "contact-item");
-                        contactItem.innerHTML = `
-                            <p><strong>Name:</strong> ${data.sender_username}</p>
-                            <p><strong>Email:</strong> ${data.sender_email}</p>
-                        `;
-                        contactList.appendChild(contactItem);
-                    }
-                }
+          const data = JSON.parse(event.data);
+          const chatMessages = document.getElementById("chat-messages");
+          console.log(data);
+          if (data.type === SOCKET_EVENTS.NEW_MESSAGE_RECEIVED) {
+            if (
+              contactId === data.message.sender_id ||
+              contactId === data.message.receiver_id
+            ) {
+              const time = new Date(
+                data.message.created_at
+              ).toLocaleTimeString();
+              const messageBubble = document.createElement("div");
+              messageBubble.classList.add(
+                "message-bubble",
+                data.message.sender_id === userId ? "sent" : "received"
+              );
+              messageBubble.innerHTML = `
+                <p>${data.message.content}</p>
+                <span class="message-time">${time}</span>
+            `;
+              chatMessages.appendChild(messageBubble);
+              chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to the bottom
+            } else {
+              showSnackbar("New message received from another contact");
             }
+          }
         };
 
         ws.onclose = () => {
-            console.log("WebSocket connection closed.");
+          console.log("WebSocket connection closed.");
         };
 
         ws.onerror = (error) => {
-            console.error("WebSocket error:", error);
+          console.error("WebSocket error:", error);
         };
 
+        messageForm.addEventListener("submit", (e) => {
+          e.preventDefault();
+          const content = messageInput.value.trim();
+          if (content) {
+            const payload = {
+              type: "send_message",
+              sender_id: userId, // Pass the logged-in user's ID
+              receiver_id: contactId,
+              content: content,
+            };
 
+            ws.send(JSON.stringify(payload));
+
+            const time = new Date().toLocaleTimeString();
+            const messageBubble = document.createElement("div");
+            messageBubble.classList.add("message-bubble", "sent");
+            messageBubble.innerHTML = `
+                        <p>${content}</p>
+                        <span class="message-time">${time}</span>
+                    `;
+            chatMessages.appendChild(messageBubble);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            messageInput.value = "";
+          }
+        });
+      }
     </script>
-</body>
+  </body>
 </html>

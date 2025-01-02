@@ -6,6 +6,7 @@ import (
 	"messaging-service/models"
 	"messaging-service/repository"
 	"net/http"
+	"time"
 
 	"sync"
 
@@ -18,11 +19,11 @@ type WebSocketHandler struct {
 	Connections map[string]*websocket.Conn
 	Mutex       sync.Mutex
 	AMQPChannel *amqp.Channel
-	Repo        repository.MessagesRepository
+	Repo        repository.MessageRepository
 	Upgrader    websocket.Upgrader
 }
 
-func NewWebSocketHandler(repo repository.MessagesRepository, amqpChannel *amqp.Channel) *WebSocketHandler {
+func NewWebSocketHandler(repo repository.MessageRepository, amqpChannel *amqp.Channel) *WebSocketHandler {
 	return &WebSocketHandler{
 		Connections: make(map[string]*websocket.Conn),
 		AMQPChannel: amqpChannel,
@@ -58,6 +59,7 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 	// Listen for incoming messages
 	for {
 		var message struct {
+			Type       string `json:"type"`
 			SenderID   string `json:"sender_id"`
 			ReceiverID string `json:"receiver_id"`
 			Content    string `json:"content"`
@@ -71,39 +73,58 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		h.HandleSendContactRequest(message.SenderID, message.ReceiverID, message.Content)
+		log.Print("Message received ", message.Content, message.ReceiverID, message.SenderID, message.Type)
+		// Handle new message
+		if message.Type == "send_message" {
+			h.HandleNewMessage(message.SenderID, message.ReceiverID, message.Content)
+		}
 	}
 }
 
-func (h *WebSocketHandler) HandleSendContactRequest(senderID, receiverID, content string) {
-	// Save the contact request in the database
-
-	newMessage := models.Message{
+func (h *WebSocketHandler) HandleNewMessage(senderID, receiverID, content string) {
+	// Create and save the message in the database
+	log.Print("Sending message --", content)
+	message := models.Message{
 		ID:         uuid.New(),
 		SenderID:   uuid.MustParse(senderID),
 		ReceiverID: uuid.MustParse(receiverID),
 		Content:    content,
+		CreatedAt:  time.Now(),
 	}
-	err := h.Repo.SendMessage(&newMessage)
+	err := h.Repo.CreateNewMessage(&message)
 	if err != nil {
-		log.Printf("Failed to store contact request in DB: %v", err)
+		log.Printf("Failed to save message: %v", err)
 		return
 	}
 
-	// Check if the recipient is online
+	// Notify the sender
 	h.Mutex.Lock()
-	conn, online := h.Connections[receiverID]
+	senderConn, senderOnline := h.Connections[senderID]
 	h.Mutex.Unlock()
 
-	if online {
-		// Send the request in real-time
-		if err := conn.WriteJSON(newMessage); err != nil {
-			log.Printf("Failed to send real-time contact request to user %s: %v", receiverID, err)
-		} else {
-			log.Printf("Real-time contact request sent to user %s", receiverID)
+	if senderOnline {
+		if err := senderConn.WriteJSON(map[string]interface{}{
+			"type":    MESSAGE_SENT_ACK,
+			"message": message,
+		}); err != nil {
+			log.Printf("Failed to notify sender %s: %v", senderID, err)
+		}
+	}
+
+	// Notify the receiver
+	h.Mutex.Lock()
+	receiverConn, receiverOnline := h.Connections[receiverID]
+	h.Mutex.Unlock()
+
+	if receiverOnline {
+		if err := receiverConn.WriteJSON(map[string]interface{}{
+			"type":    NEW_MESSAGE_RECEIVED,
+			"message": message,
+		}); err != nil {
+			log.Printf("Failed to notify receiver %s: %v", receiverID, err)
 		}
 	} else {
-		// Notify via AMQP for later delivery
+		// Notify offline user via RabbitMQ
 		err := h.AMQPChannel.Publish(
 			"",
 			NOTIFICATION_SERVICE,
@@ -111,12 +132,11 @@ func (h *WebSocketHandler) HandleSendContactRequest(senderID, receiverID, conten
 			false,
 			amqp.Publishing{
 				ContentType: "application/json",
-				Body:        []byte(fmt.Sprintf(`{"type":"contact_request", "user_id":"%s", "target_user_id":"%s"}`, senderID, receiverID)),
+				Body:        []byte(fmt.Sprintf(`{"type":"new_message", "user_id":"%s", "content":"%s"}`, receiverID, content)),
 			},
 		)
 		if err != nil {
-			log.Printf("Failed to notify offline user %s via AMQP: %v", receiverID, err)
+			log.Printf("Failed to send message notification for offline user %s: %v", receiverID, err)
 		}
-		log.Printf("User %s is offline. Notification queued via AMQP.", receiverID)
 	}
 }

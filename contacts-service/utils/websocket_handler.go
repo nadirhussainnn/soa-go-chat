@@ -182,10 +182,22 @@ func (h *WebSocketHandler) HandleAcceptRejectContactRequest(requestID, action, u
 			log.Printf("Failed to parse targetUserID as UUID: %v", err)
 			return
 		}
+		// Infact add 2 records 1 for sender, 1 for receiver
 		err = h.Repo.AcceptOrReject(&models.Contact{
 			ID:        uuid.New(),
 			UserID:    request.ReceiverID,
 			ContactID: targetUUID,
+		})
+
+		if err != nil {
+			log.Printf("Failed to add contact: %v", err)
+			return
+		}
+
+		err = h.Repo.AcceptOrReject(&models.Contact{
+			ID:        uuid.New(),
+			UserID:    targetUUID,
+			ContactID: request.ReceiverID,
 		})
 		if err != nil {
 			log.Printf("Failed to add contact: %v", err)
