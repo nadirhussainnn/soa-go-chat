@@ -44,7 +44,7 @@
 
       .progress {
         height: 100%;
-        background-color: #a7c957;
+        background-color: #0078d7;
         transition: width 0.2s ease;
       }
     </style>
@@ -208,6 +208,16 @@
           isSender ? "sent" : "received"
         );
 
+         // Format the time
+  const options = {
+    hour: "numeric",
+    minute: "numeric",
+    hour12: true,
+  };
+  const formattedTime = new Date(message.created_at).toLocaleTimeString(
+    "en-US",
+    options
+  );
         if (message.message_type === "file") {
           const fileDownloadUrl = `${GATEWAY_HTTP_URL}/messages/file/?message_id=${message.id}`;
 
@@ -215,13 +225,11 @@
           <p>📎 <a href="#" onclick="downloadFile('${fileDownloadUrl}', '${
             message.file_name
           }')">${message.file_name}</a></p>
-          <span class="message-time">${new Date(message.created_at).toLocaleTimeString()}</span>`;
+          <span class="message-time"><i>${formattedTime}</i></span>`;
         } else {
           messageBubble.innerHTML = `
       <p>${message.content}</p>
-      <span class="message-time">${new Date(
-        message.created_at
-      ).toLocaleTimeString()}</span>
+      <span class="message-time"><i>${formattedTime}</i></span>
     `;
         }
 

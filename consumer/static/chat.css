@@ -31,6 +31,8 @@
 
 /* Chat Messages */
 .chat-messages {
+    display: flex;
+    flex-direction: column;
     flex: 1;
     overflow-y: auto;
     padding: 1rem;
@@ -38,18 +40,22 @@
 }
 
 .message-bubble {
-    max-width: 70%;
-    margin-bottom: 1rem;
-    padding: 0.8rem;
+    margin: 10px 0;
+    padding:0px 10px 10px 10px;
     border-radius: 10px;
-    position: relative;
+    max-width: 70%;
+    min-width: 20%;
     word-wrap: break-word;
+    position: relative; /* Enable relative positioning for the time */
+
 }
 
 .message-bubble.sent {
     align-self: flex-end;
-    background-color: #0078d7;
+    background-color: #a7c957;
     color: #fff;
+    text-align: right;
+
 }
 
 .message-bubble.received {
@@ -57,13 +63,22 @@
     background-color: #fff;
     color: #333;
     border: 1px solid #ccc;
+    text-align: left;
+
 }
 
 .message-time {
-    display: block;
+    /* display: block;
     font-size: 0.8rem;
     margin-top: 0.5rem;
+    color: #999; */
+    
+    position: absolute; /* Make it absolute to place it inside the bubble */
+    bottom: 5px; /* Position it at the bottom */
+    right: 10px; /* Position it at the right */
+    font-size: 0.8rem;
     color: #999;
+
 }
 
 /* Chat Input */
