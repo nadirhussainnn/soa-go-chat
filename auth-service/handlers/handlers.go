@@ -36,12 +36,15 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	// Fetch the user
 	user, err := h.UserRepo.GetUserByUsername(credentials.Username)
 	if err != nil {
-		http.Error(w, "Invalid username", http.StatusUnauthorized)
+		http.Error(w, `{"message": "Invalid username or user does not exist"}`, http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json") // Ensure the response is JSON
 		return
+
 	}
 	// Compare passwords
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(credentials.Password)); err != nil {
-		http.Error(w, "Invalid password", http.StatusUnauthorized)
+		http.Error(w, `{"message": "Invalid password"}`, http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json") // Ensure the response is JSON
 		return
 	}
 
@@ -55,7 +58,8 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	})
 	tokenString, err := token.SignedString(JWT_SECRET)
 	if err != nil {
-		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+		http.Error(w, `{"message": "Failed to generate token"}`, http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json") // Ensure the response is JSON
 		return
 	}
 	// Create a session
@@ -65,7 +69,8 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		Token:  tokenString,
 	}
 	if err := h.SessionRepo.CreateSession(session); err != nil {
-		http.Error(w, "Failed to create session", http.StatusInternalServerError)
+		http.Error(w, `{"message": "Failed to create session"}`, http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json") // Ensure the response is JSON
 		return
 	}
 	// Set the session cookie

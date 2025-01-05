@@ -34,7 +34,7 @@ func (r *userRepository) SearchUser(query string) ([]models.User, error) {
 
 func (r *userRepository) GetUserByUsername(username string) (*models.User, error) {
 	var user models.User
-	err := r.db.Where("username = ?", username).First(&user).Error
+	err := r.db.Where("username = ? OR email = ?", username, username).First(&user).Error
 	return &user, err
 }
 

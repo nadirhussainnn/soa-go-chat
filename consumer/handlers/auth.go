@@ -15,6 +15,18 @@ type User struct {
 	Email    string `json:"email"`
 }
 
+// Helper function to render the login template with an error message
+func renderLoginWithError(w http.ResponseWriter, errorMessage string) {
+	tmpl := template.Must(template.ParseGlob("templates/*.html"))
+	err := tmpl.ExecuteTemplate(w, "login.html", map[string]interface{}{
+		"ErrorMessage": errorMessage,
+	})
+	if err != nil {
+		log.Printf("[renderLoginWithError] Failed to render login template: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+}
+
 func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
@@ -27,6 +39,8 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	resp, err := http.Post(GATEWAY_URL+"/auth/login", "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		log.Printf("[HandleLogin] Error communicating with Authentication Service: %v", err)
+		renderLoginWithError(w, "Internal Server Error")
+
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -38,16 +52,26 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		UserName     string `json:"username"`
 		Email        string `json:"email"`
 	}
+
+	if resp.StatusCode != http.StatusOK {
+		var errorResponse struct {
+			Message string `json:"message"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil || errorResponse.Message == "" {
+			renderLoginWithError(w, "Invalid username or password")
+		} else {
+			renderLoginWithError(w, errorResponse.Message)
+		}
+		return
+	}
+
 	err = json.NewDecoder(resp.Body).Decode(&user)
 	if err != nil {
 		log.Printf("[HandleLogin] Failed to decode auth-service response: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		renderLoginWithError(w, "Internal Server Error")
 		return
 	}
-	if resp.StatusCode != http.StatusOK {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-		return
-	}
+
 	log.Print("Logged in user", user)
 	// Forward cookies from auth-service to the browser
 	for _, cookie := range resp.Cookies() {
@@ -58,7 +82,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	req, err := http.NewRequest("GET", GATEWAY_URL+"/contacts/?user_id="+user.UserID, nil)
 	if err != nil {
 		log.Printf("[HandleLogin] Failed to create request to contacts-service: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		renderLoginWithError(w, "Internal Server Error")
 		return
 	}
 	req.AddCookie(&http.Cookie{
@@ -71,7 +95,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	contactsResp, err := client.Do(req)
 	if err != nil {
 		log.Printf("[HandleLogin] Failed to fetch contacts for user %s: %v", user.UserID, err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		renderLoginWithError(w, "Failed to fetch contacts")
 		return
 	}
 	defer contactsResp.Body.Close()
@@ -79,7 +103,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	log.Print("Contacts response", contactsResp.Body)
 	if contactsResp.StatusCode != http.StatusOK {
 		log.Printf("[HandleLogin] Error from contacts-service for user %s: %s", user.UserID, contactsResp.Status)
-		http.Error(w, "Failed to fetch contacts", http.StatusInternalServerError)
+		renderLoginWithError(w, "Failed to fetch contacts")
 		return
 	}
 
@@ -100,7 +124,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	err = json.NewDecoder(contactsResp.Body).Decode(&data)
 	if err != nil {
 		log.Printf("[HandleLogin] Failed to decode contacts response for user %s: %v", user.UserID, err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		renderLoginWithError(w, "Internal Server Error")
 		return
 	}
 	// Pass contacts data to the template
@@ -116,7 +140,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Printf("[HandleLogin] Failed to render template for user %s: %v", user.UserID, err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		renderLoginWithError(w, "Internal Server Error")
 	}
 }
 

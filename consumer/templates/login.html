@@ -16,15 +16,20 @@
             <section class="form-section">
                 <h1>Login</h1>
                 <form action="/login" method="POST" class="login-form">
-                    <label for="username">Username:</label>
+                    <label for="username">Username or Email:</label>
                     <input type="text" id="username" name="username" required>
 
                     <label for="password">Password:</label>
                     <input type="password" id="password" name="password" required>
 
+                    {{ if .ErrorMessage }}
+                <div class="error-message">{{ .ErrorMessage }}</div>
+                {{ end }}
+                
                     <button type="submit" class="btn">Login</button>
                 </form>
 
+                
                 <div class="additional-links">
                     <a href="/register" class="btn small-btn">Register</a>
                     <a href="/forgot-password" class="btn small-btn">Forgot Password?</a>
