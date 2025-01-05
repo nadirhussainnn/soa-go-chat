@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/static/index.css">
     <link rel="stylesheet" href="/static/contacts.css">
     <link rel="stylesheet" href="/static/snackbar.css">
+    <link rel="stylesheet" href="/static/headers.css">
     <style>
         .list-item {
             padding: 15px;
@@ -44,7 +45,7 @@
 </head>
 <body>
     <!-- Include Header -->
-    {{ template "contacts_header.html" }}
+    {{ template "contacts_header.html" .}}
 
     <div id="snackbar">Some text some message..</div>
     <!-- Main Content -->

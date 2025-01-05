@@ -35,6 +35,8 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	var user struct {
 		UserID       string `json:"user_id"`
 		SessionToken string `json:"session_token"`
+		UserName     string `json:"username"`
+		Email        string `json:"email"`
 	}
 	err = json.NewDecoder(resp.Body).Decode(&user)
 	if err != nil {
@@ -42,7 +44,6 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-
 	if resp.StatusCode != http.StatusOK {
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
@@ -107,6 +108,8 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	err = tmpl.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
 		"Contacts":       data.Contacts,
 		"UserID":         user.UserID,
+		"Username":       user.UserName,
+		"Email":          user.Email,
 		"WebSocketURL":   os.Getenv("GATEWAY_WS_URL"),
 		"GatewayHttpURL": os.Getenv("GATEWAY_URL"),
 	})
@@ -219,6 +222,20 @@ func HandleContacts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	username, ok := r.Context().Value("username").(string)
+	if !ok || userID == "" {
+		log.Print("Username not found in context")
+		http.Error(w, "Unauthorized: username is required", http.StatusUnauthorized)
+		return
+	}
+
+	email, ok := r.Context().Value("email").(string)
+	if !ok || userID == "" {
+		log.Print("Email not found in context")
+		http.Error(w, "Unauthorized: email is required", http.StatusUnauthorized)
+		return
+	}
+
 	cookie, err := r.Cookie("session_token")
 	if err != nil || cookie.Value == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -288,6 +305,8 @@ func HandleContacts(w http.ResponseWriter, r *http.Request) {
 		"Contacts":     data.Contacts,
 		"ContactsJSON": template.JS(contactsJSON), // Safe JSON for embedding
 		"UserID":       userID,
+		"Username":     username,
+		"Email":        email,
 		"WebSocketURL": os.Getenv("GATEWAY_WS_URL"),
 	})
 
@@ -302,6 +321,20 @@ func HandleRequests(w http.ResponseWriter, r *http.Request) {
 	if !ok || userID == "" {
 		log.Print("User ID not found in context")
 		http.Error(w, "Unauthorized: user_id is required", http.StatusUnauthorized)
+		return
+	}
+
+	username, ok := r.Context().Value("username").(string)
+	if !ok || userID == "" {
+		log.Print("Username not found in context")
+		http.Error(w, "Unauthorized: username is required", http.StatusUnauthorized)
+		return
+	}
+
+	email, ok := r.Context().Value("email").(string)
+	if !ok || userID == "" {
+		log.Print("Email not found in context")
+		http.Error(w, "Unauthorized: email is required", http.StatusUnauthorized)
 		return
 	}
 
@@ -360,6 +393,8 @@ func HandleRequests(w http.ResponseWriter, r *http.Request) {
 	err = tmpl.ExecuteTemplate(w, "requests.html", map[string]interface{}{
 		"Requests":     requests,
 		"UserID":       userID,
+		"Username":     username,
+		"Email":        email,
 		"WebSocketURL": os.Getenv("GATEWAY_WS_URL"),
 	})
 	if err != nil {
@@ -370,11 +405,25 @@ func HandleRequests(w http.ResponseWriter, r *http.Request) {
 
 func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	GATEWAY_URL := os.Getenv("GATEWAY_URL")
-	log.Print("Gateway URL", GATEWAY_URL)
+
 	userID, ok := r.Context().Value("user_id").(string)
 	if !ok || userID == "" {
 		log.Print("User ID not found in context")
 		http.Error(w, "Unauthorized: user_id is required", http.StatusUnauthorized)
+		return
+	}
+
+	username, ok := r.Context().Value("username").(string)
+	if !ok || userID == "" {
+		log.Print("Username not found in context")
+		http.Error(w, "Unauthorized: username is required", http.StatusUnauthorized)
+		return
+	}
+
+	email, ok := r.Context().Value("email").(string)
+	if !ok || userID == "" {
+		log.Print("Email not found in context")
+		http.Error(w, "Unauthorized: email is required", http.StatusUnauthorized)
 		return
 	}
 
@@ -435,6 +484,8 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	err = tmpl.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
 		"Contacts":       data.Contacts,
 		"UserID":         userID,
+		"Username":       username,
+		"Email":          email,
 		"WebSocketURL":   os.Getenv("GATEWAY_WS_URL"),
 		"GatewayHttpURL": os.Getenv("GATEWAY_URL"),
 	})
