@@ -84,9 +84,12 @@ func (a *AuthMiddleware) RequireAuth(next http.Handler) http.Handler {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		log.Print("User ID", response.UserID)
+		log.Print("Passing [user] context to route", response.UserID, response.Username, response.Email)
 		// Extract user_id from session token and add it to request context
 		ctx := context.WithValue(r.Context(), "user_id", response.UserID)
+		ctx = context.WithValue(ctx, "username", response.Username)
+		ctx = context.WithValue(ctx, "email", response.Email)
+
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

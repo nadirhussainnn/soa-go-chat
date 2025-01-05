@@ -80,7 +80,12 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"user_id": session.UserID.String(), "session_token": tokenString})
+	json.NewEncoder(w).Encode(map[string]string{
+		"user_id":       session.UserID.String(),
+		"session_token": tokenString,
+		"username":      user.Username,
+		"email":         user.Email,
+	})
 }
 
 func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {

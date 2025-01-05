@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/static/dashboard.css" />
     <link rel="stylesheet" href="/static/chat.css" />
     <link rel="stylesheet" href="/static/snackbar.css" />
+    <link rel="stylesheet" href="/static/headers.css" />
 
     <style>
       .list-item {
@@ -51,7 +52,7 @@
   </head>
   <body>
     <!-- Include Header -->
-    {{ template "dashboard_header.html" }}
+    {{ template "dashboard_header.html" .}}
 
     <div id="snackbar">Some text some message..</div>
 
@@ -208,23 +209,21 @@
           isSender ? "sent" : "received"
         );
 
-         // Format the time
-  const options = {
-    hour: "numeric",
-    minute: "numeric",
-    hour12: true,
-  };
-  const formattedTime = new Date(message.created_at).toLocaleTimeString(
-    "en-US",
-    options
-  );
+        // Format the time
+        const options = {
+          hour: "numeric",
+          minute: "numeric",
+          hour12: true,
+        };
+        const formattedTime = new Date(message.created_at).toLocaleTimeString(
+          "en-US",
+          options
+        );
         if (message.message_type === "file") {
           const fileDownloadUrl = `${GATEWAY_HTTP_URL}/messages/file/?message_id=${message.id}`;
 
           messageBubble.innerHTML = `
-          <p>📎 <a href="#" onclick="downloadFile('${fileDownloadUrl}', '${
-            message.file_name
-          }')">${message.file_name}</a></p>
+          <p>📎 <a href="#" onclick="downloadFile('${fileDownloadUrl}', '${message.file_name}')">${message.file_name}</a></p>
           <span class="message-time"><i>${formattedTime}</i></span>`;
         } else {
           messageBubble.innerHTML = `
@@ -237,39 +236,38 @@
       }
 
       function downloadFile(url, fileName) {
-    // Get cookies from the browser
-    const cookies = document.cookie; // Example: "session_token=your_token_value"
-        console.log("COOKIE", cookies)
-    fetch(url, {
-        method: 'GET',
-        headers: {
-            'Cookie': cookies, // Attach cookies manually
-        },
-        credentials: 'include', // Also ensure cookies are included automatically
-    })
-    .then(response => {
-      console.log("URL is", url)
-      console.log("response", response)
-        if (!response.ok) {
-            throw new Error('Failed to download file');
-        }
-        return response.blob(); // Convert response to a binary blob
-    })
-    .then(blob => {
-        const downloadUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = downloadUrl;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(downloadUrl); // Clean up
-    })
-    .catch(error => {
-        console.error('Error downloading file:', error);
-    });
-}
-
+        // Get cookies from the browser
+        const cookies = document.cookie; // Example: "session_token=your_token_value"
+        console.log("COOKIE", cookies);
+        fetch(url, {
+          method: "GET",
+          headers: {
+            Cookie: cookies, // Attach cookies manually
+          },
+          credentials: "include", // Also ensure cookies are included automatically
+        })
+          .then((response) => {
+            console.log("URL is", url);
+            console.log("response", response);
+            if (!response.ok) {
+              throw new Error("Failed to download file");
+            }
+            return response.blob(); // Convert response to a binary blob
+          })
+          .then((blob) => {
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = downloadUrl;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(downloadUrl); // Clean up
+          })
+          .catch((error) => {
+            console.error("Error downloading file:", error);
+          });
+      }
 
       function handleMessageSubmit(event) {
         event.preventDefault();
