@@ -63,7 +63,6 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 			UserID       string `json:"user_id"`
 			Action       string `json:"action"` // accept or reject
 			TargetUserID string `json:"target_user_id"`
-			ContactID    string `json:"contact_id"`
 		}
 		err := conn.ReadJSON(&message)
 		if err != nil {
@@ -80,7 +79,7 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 			h.HandleSendContactRequest(message.UserID, message.TargetUserID)
 		case "remove_contact":
 			// In this Target user is one who is being removed, and UserID is one who is removing someone
-			h.HandleRemoveContact(message.ContactID, message.UserID, message.TargetUserID)
+			h.HandleRemoveContact(message.UserID, message.TargetUserID)
 
 		case "accept_contact_request":
 			// In this Target user is one who sent the request, not the one who received
@@ -169,10 +168,17 @@ func (h *WebSocketHandler) HandleSendContactRequest(senderID, receiverID string)
 	}
 }
 
-func (h *WebSocketHandler) HandleRemoveContact(id, senderID, receiverID string) {
+func (h *WebSocketHandler) HandleRemoveContact(senderID, receiverID string) {
 	// Save the contact request in the database
 
-	err := h.Repo.RemoveContact(id)
+	log.Print("Removing user", senderID, receiverID)
+	err := h.Repo.RemoveContact(senderID, receiverID)
+	if err != nil {
+		log.Printf("Failed to remove contact from DB: %v", err)
+		return
+	}
+
+	err = h.Repo.RemoveContact(receiverID, senderID)
 	if err != nil {
 		log.Printf("Failed to remove contact from DB: %v", err)
 		return
@@ -267,15 +273,10 @@ func (h *WebSocketHandler) HandleAcceptRejectContactRequest(requestID, action, u
 			log.Printf("Failed to add contact: %v", err)
 			return
 		}
-	} else if action == "reject" {
-		request.Status = "rejected"
-	} else {
-		log.Printf("Invalid action: %s", action)
-		return
 	}
 
 	// Update the request in the database
-	err = h.Repo.UpdateContactRequest(request)
+	err = h.Repo.DeleteRequest(request)
 	if err != nil {
 		log.Printf("Failed to update request: %v", err)
 		return

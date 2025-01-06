@@ -199,7 +199,15 @@ func (h *Handler) SearchContacts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	contacts, err := h.UserRepo.SearchUser(query)
+	userID, ok := r.Context().Value("user_id").(string)
+
+	if !ok || userID == "" {
+		log.Print("User ID not found in context")
+		http.Error(w, "Unauthorized: user_id is required", http.StatusUnauthorized)
+		return
+	}
+
+	contacts, err := h.UserRepo.SearchUser(query, userID)
 	if err != nil {
 		http.Error(w, "Failed to search Users", http.StatusInternalServerError)
 		return

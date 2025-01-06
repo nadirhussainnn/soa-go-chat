@@ -1,219 +1,222 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Go Chat - Contacts</title>
-    <link rel="stylesheet" href="/static/index.css">
-    <link rel="stylesheet" href="/static/contacts.css">
-    <link rel="stylesheet" href="/static/snackbar.css">
-    <link rel="stylesheet" href="/static/headers.css">
+    <link rel="stylesheet" href="/static/index.css" />
+    <link rel="stylesheet" href="/static/contacts.css" />
+    <link rel="stylesheet" href="/static/snackbar.css" />
+    <link rel="stylesheet" href="/static/headers.css" />
     <style>
-        .list-item {
-            padding: 15px;
-            border: 1px solid #ddd;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            background-color: #f9f9f9;
-        }
-        .hidden {
-            display: none;
-        }
-        .action-btn {
-            margin-top: 10px;
-            padding: 5px 10px;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-        .send-request-btn {
-            background-color: #007bff;
-            color: white;
-            border: none;
-        }
-        .send-request-btn:hover {
-            background-color: #0056b3;
-        }
-        .remove-btn {
-            background-color: #dc3545;
-            color: white;
-            border: none;
-        }
-        .remove-btn:hover {
-            background-color: #c82333;
-        }
+      .list-item {
+        padding: 15px;
+        border: 1px solid #ddd;
+        margin-bottom: 10px;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+      }
+      .hidden {
+        display: none;
+      }
+      .action-btn {
+        margin-top: 10px;
+        padding: 5px 10px;
+        border-radius: 3px;
+        cursor: pointer;
+      }
+      .send-request-btn {
+        background-color: #007bff;
+        color: white;
+        border: none;
+      }
+      .send-request-btn:hover {
+        background-color: #0056b3;
+      }
+      .remove-btn {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+      }
+      .remove-btn:hover {
+        background-color: #c82333;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <!-- Include Header -->
     {{ template "contacts_header.html" .}}
 
     <div id="snackbar">Some text some message..</div>
     <!-- Main Content -->
     <div class="contact-chat-container">
-        <div class="search-component">
-            <input type="text" id="search" placeholder="Search...">
-        </div>
-        <ul id="contact-list" class="list-items">
-            {{ range .Contacts }}
-            <li class="list-item contact-item">
-                <p><strong>Name:</strong> {{ .Details.Username }}</p>
-                <p><strong>Email:</strong> {{ .Details.Email }}</p>
-                <button class="action-btn remove-btn" data-contact-id="{{ .ID }}" data-target-user-id="{{ .Details.UserID }}">Remove</button>
-            </li>
-            {{ end }}
-        </ul>
-        <ul id="search-results" class="list-items hidden"></ul>
-
+      <div class="search-component">
+        <input type="text" id="search" placeholder="Search..." />
+      </div>
+      <ul id="contact-list" class="list-items">
+        {{ range .Contacts }}
+        <li class="list-item contact-item">
+          <p><strong>Name:</strong> {{ .Details.Username }}</p>
+          <p><strong>Email:</strong> {{ .Details.Email }}</p>
+          <button
+            class="action-btn remove-btn"
+            data-target-user-id="{{ .Details.UserID }}"
+          >
+            Remove
+          </button>
+        </li>
+        {{ end }}
+      </ul>
+      <ul id="search-results" class="list-items hidden"></ul>
     </div>
     <script src="/static/helpers.js"></script>
     <script>
-        // Pass contacts data to JavaScript
-        const contacts = JSON.parse('{{ .ContactsJSON }}');
-        console.log("contacts", contacts)
-        const userId = "{{ .UserID }}";
-        const GATEWAY_WS_URL = "{{ .WebSocketURL }}"
-        const ws = new WebSocket(`${GATEWAY_WS_URL}/contacts?user_id=${userId}`);
+      // Pass contacts data to JavaScript
+      const contacts = JSON.parse("{{ .ContactsJSON }}");
+      console.log("contacts", contacts);
+      const userId = "{{ .UserID }}";
+      const GATEWAY_WS_URL = "{{ .WebSocketURL }}";
+      const ws = new WebSocket(`${GATEWAY_WS_URL}/contacts?user_id=${userId}`);
 
-        ws.onopen = () => {
-            console.log("WebSocket connection established.");
-        };
+      ws.onopen = () => {
+        console.log("WebSocket connection established.");
+      };
 
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            console.log("WebSocket message received:", data);
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log("WebSocket message received:", data);
 
-            if (data.type === SOCKET_EVENTS.NEW_CONTACT_REQUEST_RECEIVED) {
-                showSnackbar("Request received for connection")
+        if (data.type === SOCKET_EVENTS.NEW_CONTACT_REQUEST_RECEIVED) {
+          showSnackbar("Request received for connection");
+        }
+        if (data.type === SOCKET_EVENTS.CONTACT_REQUEST_SENT_ACK) {
+          showSnackbar("Contact request sent Successfully!");
+        }
+
+        if (data.type === SOCKET_EVENTS.CONTACT_REMOVED_ACK) {
+          showSnackbar("Contact was removed Successfully!");
+        }
+        if (data.type === SOCKET_EVENTS.CONTACT_REMOVED) {
+          showSnackbar("You were removed by someone!");
+        }
+      };
+
+      ws.onclose = () => {
+        console.log("WebSocket connection closed.");
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+      };
+
+      const contactList = document.getElementById("contact-list");
+
+      // Delegate click event to parent container
+      contactList.addEventListener("click", (event) => {
+        const target = event.target;
+
+        // Check if the clicked element is a remove button
+        if (target.classList.contains("remove-btn")) {
+          const targetUserId = target.getAttribute("data-target-user-id");
+          removeContact(userId, targetUserId);
+        }
+      });
+
+      // Search API Integration
+      document
+        .getElementById("search")
+        .addEventListener("keyup", async function () {
+          const query = this.value.trim();
+          const searchResults = document.getElementById("search-results");
+
+          if (!query) {
+            searchResults.classList.add("hidden");
+            return;
+          }
+
+          try {
+            const response = await fetch(`/search?q=${query}`);
+            if (!response.ok) {
+              console.error("Search API returned an error");
+              return;
             }
-            if (data.type === SOCKET_EVENTS.CONTACT_REQUEST_SENT_ACK) {
-                showSnackbar("Contact request sent Successfully!")
-            }
 
-            if (data.type === SOCKET_EVENTS.CONTACT_REMOVED_ACK) {
-                showSnackbar("Contact was removed Successfully!")
-            }
-            if (data.type === SOCKET_EVENTS.CONTACT_REMOVED) {
-                showSnackbar("You were removed by someone!")
-            }
-            
+            const users = await response.json(); // The API returns an array of users
 
-            
-        };
+            searchResults.innerHTML = ""; // Clear existing results
+            console.log("Users", users);
+            console.log("Contacts", contacts);
+            users.forEach((user) => {
 
-        ws.onclose = () => {
-            console.log("WebSocket connection closed.");
-        };
+                const isContact = contacts.some(
+        (c) => c.contactDetails.user_id === user.id
+      );
 
-        ws.onerror = (error) => {
-            console.error("WebSocket error:", error);
-        };
+      if (user.id === userId || isContact) {
+        return; // Skip this user
+      }
 
-        const contactList = document.getElementById("contact-list");
+              const listItem = document.createElement("li");
+              listItem.classList.add("list-item");
 
-        contactList.querySelectorAll(".remove-btn").forEach(button => {
-        button.addEventListener("click", () => {
-            const contactId = button.getAttribute("data-contact-id");
-            const targetUserId = button.getAttribute("data-target-user-id");
-            removeContact(contactId, userId, targetUserId)
-        });
-    });
-
-        // Search API Integration
-        document.getElementById("search").addEventListener("keyup", async function () {
-            const query = this.value.trim();
-            const searchResults = document.getElementById("search-results");
-
-    
-            if (!query) {
-                searchResults.classList.add("hidden");
-                return;
-            }
-    
-            try {
-                const response = await fetch(`/search?q=${query}`);
-                if (!response.ok) {
-                    console.error("Search API returned an error");
-                    return;
-                }
-    
-                const users = await response.json(); // The API returns an array of users
-    
-                searchResults.innerHTML = ""; // Clear existing results
-                console.log("Users", users)
-                console.log("Contacts", contacts)
-                users.forEach(user => {
-
-                    const isContact = contacts.some(c => c.ContactID === user.id);
-                    const listItem = document.createElement("li");
-                    listItem.classList.add("list-item");
-    
-                    listItem.innerHTML = `
-                        <p><strong>Name:</strong> ${user.username}</p>
+              listItem.innerHTML = `
+                        <p><strong>Username:</strong> ${user.username}</p>
                         <p><strong>Email:</strong> ${user.email}</p>
-                        <button class="action-btn ${isContact ? 'remove-btn' : 'send-request-btn'}" data-user-id="${user.id}">
-                            ${isContact ? 'Remove' : 'Send Request'}
+                        <button class="action-btn send-request-btn" data-user-id="${user.id}">
+                            Send Request
                         </button>
                     `;
-    
-                    // Attach button handlers
-                    const button = listItem.querySelector("button");
-                    button.addEventListener("click", () => {
-                        if (isContact) {
-                            removeContact(user.id);
-                        } else {
-                            sendRequest(user.id);
-                        }
-                    });
-    
-                    searchResults.appendChild(listItem);
-                });
-    
-                searchResults.classList.remove("hidden");
-            } catch (error) {
-                console.error("Failed to fetch search results:", error);
-            }
+
+              // Attach button handlers
+              const button = listItem.querySelector("button");
+              button.addEventListener("click", () => {
+                if (isContact) {
+                  removeContact(user.id);
+                } else {
+                  sendRequest(user.id);
+                }
+              });
+
+              searchResults.appendChild(listItem);
+            });
+
+            searchResults.classList.remove("hidden");
+          } catch (error) {
+            console.error("Failed to fetch search results:", error);
+          }
         });
-    
 
-        // Sending contact request
+      // Sending contact request
 
-        function sendRequest(targetUserId) {
-            const payload = {
-                type: "send_contact_request",
-                user_id: userId,
-                target_user_id: targetUserId,
-            };
+      function sendRequest(targetUserId) {
+        const payload = {
+          type: "send_contact_request",
+          user_id: userId,
+          target_user_id: targetUserId,
+        };
 
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify(payload));
-                console.log("Contact request sent:", payload);
-            } else {
-                console.error("WebSocket connection is not open.");
-            }
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify(payload));
+          console.log("Contact request sent:", payload);
+        } else {
+          console.error("WebSocket connection is not open.");
         }
+      }
 
+      function removeContact(userId, targetUserId) {
+        const payload = {
+          type: "remove_contact",
+          user_id: userId,
+          target_user_id: targetUserId,
+        };
 
-
-        function removeContact(id, userId, targetUserId) {
-
-            const payload = {
-                type: "remove_contact",
-                contact_id: id,
-                user_id: userId,
-                target_user_id: targetUserId
-            };
-
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify(payload));
-                console.log("Removed contact ", payload);
-            } else {
-                console.error("WebSocket connection is not open.");
-            }
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify(payload));
+          console.log("Removed contact ", payload);
+        } else {
+          console.error("WebSocket connection is not open.");
         }
-
-
+      }
     </script>
-    
-
-</body>
+  </body>
 </html>
