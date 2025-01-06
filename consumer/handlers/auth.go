@@ -353,6 +353,7 @@ func HandleContacts(w http.ResponseWriter, r *http.Request) {
 			Details   struct {
 				Username string `json:"username"`
 				Email    string `json:"email"`
+				UserID   string `json:"user_id"`
 			} `json:"contactDetails"`
 		} `json:"contacts"`
 	}
@@ -583,12 +584,30 @@ func HandleSearch(w http.ResponseWriter, r *http.Request) {
 	gatewayURL := os.Getenv("GATEWAY_URL")
 	searchURL := gatewayURL + "/auth/search?q=" + query
 
-	resp, err := http.Get(searchURL)
-	if err != nil {
-		log.Printf("Failed to call search API: %v", err)
-		http.Error(w, "Failed to fetch search results", http.StatusInternalServerError)
+	cookie, err := r.Cookie("session_token")
+	if err != nil || cookie.Value == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
+
+	// Fetch only contacts from the contacts-service
+	req, err := http.NewRequest("GET", searchURL, nil)
+	if err != nil {
+		log.Printf("[HandleLogin] Failed to create request to auth-service: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	req.AddCookie(cookie)
+
+	log.Print("Request", req.Header)
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("[HandleLogin] Failed to search contacts %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {

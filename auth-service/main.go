@@ -3,6 +3,7 @@ package main
 import (
 	"auth-service/amqp"
 	"auth-service/handlers"
+	"auth-service/middleware"
 	"auth-service/models"
 	"auth-service/repository"
 	"auth-service/utils"
@@ -59,14 +60,7 @@ func main() {
 	http.HandleFunc("/login", handler.LoginHandler)
 	http.HandleFunc("/forgot-password", handler.ForgotPasswordHandler)
 	http.HandleFunc("/logout", handler.LogoutHandler)
-	// http.Handle("/search", authMiddleware.RequireAuth(http.HandlerFunc(handler.SearchContacts)))
-	http.HandleFunc("/search", handler.SearchContacts)
-	http.HandleFunc("/details", handler.GetUserDetailsHandler)
-
-	// // Example protected route
-	// http.Handle("/protected", middleware.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	// 	w.Write([]byte("This is a protected route"))
-	// })))
+	http.Handle("/search", middleware.RequireAuth(http.HandlerFunc(handler.SearchContacts)))
 
 	log.Println("Auth service running on port", PORT)
 	log.Fatal(http.ListenAndServe(fmt.Sprint(":", PORT), nil))

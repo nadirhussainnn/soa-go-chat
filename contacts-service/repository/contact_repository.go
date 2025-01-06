@@ -11,6 +11,7 @@ type ContactsRepository interface {
 	AcceptOrReject(contact *models.Contact) error
 	AddContactRequest(req *models.ContactRequest) error
 	GetContactsByUserID(userID uuid.UUID) ([]models.Contact, error)
+	RemoveContact(id string) error
 	GetContactRequestByID(userID string) (*models.ContactRequest, error)
 	UpdateContactRequest(req *models.ContactRequest) error
 	GetContactRequestsByUserID(userID uuid.UUID) ([]models.ContactRequest, error)
@@ -36,6 +37,10 @@ func (r *contactsRepository) GetContactsByUserID(userID uuid.UUID) ([]models.Con
 	var contacts []models.Contact
 	err := r.db.Where("user_id = ?", userID).Find(&contacts).Error
 	return contacts, err
+}
+
+func (r *contactsRepository) RemoveContact(id string) error {
+	return r.db.Model(&models.Contact{}).Where("id = ?", id).Delete(r).Error
 }
 
 func (r *contactsRepository) UpdateContactRequest(req *models.ContactRequest) error {

@@ -301,8 +301,6 @@
           credentials: "include", // Also ensure cookies are included automatically
         })
           .then((response) => {
-            console.log("URL is", url);
-            console.log("response", response);
             if (!response.ok) {
               throw new Error("Failed to download file");
             }

@@ -58,7 +58,7 @@
             <li class="list-item contact-item">
                 <p><strong>Name:</strong> {{ .Details.Username }}</p>
                 <p><strong>Email:</strong> {{ .Details.Email }}</p>
-                <button class="action-btn remove-btn" data-contact-id="{{ .ContactID }}">Remove</button>
+                <button class="action-btn remove-btn" data-contact-id="{{ .ID }}" data-target-user-id="{{ .Details.UserID }}">Remove</button>
             </li>
             {{ end }}
         </ul>
@@ -69,9 +69,9 @@
     <script>
         // Pass contacts data to JavaScript
         const contacts = JSON.parse('{{ .ContactsJSON }}');
+        console.log("contacts", contacts)
         const userId = "{{ .UserID }}";
         const GATEWAY_WS_URL = "{{ .WebSocketURL }}"
-        console.log("GATEWAY_WS_URL", GATEWAY_WS_URL)
         const ws = new WebSocket(`${GATEWAY_WS_URL}/contacts?user_id=${userId}`);
 
         ws.onopen = () => {
@@ -88,6 +88,16 @@
             if (data.type === SOCKET_EVENTS.CONTACT_REQUEST_SENT_ACK) {
                 showSnackbar("Contact request sent Successfully!")
             }
+
+            if (data.type === SOCKET_EVENTS.CONTACT_REMOVED_ACK) {
+                showSnackbar("Contact was removed Successfully!")
+            }
+            if (data.type === SOCKET_EVENTS.CONTACT_REMOVED) {
+                showSnackbar("You were removed by someone!")
+            }
+            
+
+            
         };
 
         ws.onclose = () => {
@@ -97,11 +107,22 @@
         ws.onerror = (error) => {
             console.error("WebSocket error:", error);
         };
+
+        const contactList = document.getElementById("contact-list");
+
+        contactList.querySelectorAll(".remove-btn").forEach(button => {
+        button.addEventListener("click", () => {
+            const contactId = button.getAttribute("data-contact-id");
+            const targetUserId = button.getAttribute("data-target-user-id");
+            removeContact(contactId, userId, targetUserId)
+        });
+    });
+
         // Search API Integration
         document.getElementById("search").addEventListener("keyup", async function () {
             const query = this.value.trim();
             const searchResults = document.getElementById("search-results");
-            const contactList = document.getElementById("contact-list");
+
     
             if (!query) {
                 searchResults.classList.add("hidden");
@@ -116,10 +137,12 @@
                 }
     
                 const users = await response.json(); // The API returns an array of users
-                console.log("Search API Response:", users);
     
                 searchResults.innerHTML = ""; // Clear existing results
+                console.log("Users", users)
+                console.log("Contacts", contacts)
                 users.forEach(user => {
+
                     const isContact = contacts.some(c => c.ContactID === user.id);
                     const listItem = document.createElement("li");
                     listItem.classList.add("list-item");
@@ -154,7 +177,7 @@
 
         // Sending contact request
 
-        function sendRequest(targetUserId, targetUsername) {
+        function sendRequest(targetUserId) {
             const payload = {
                 type: "send_contact_request",
                 user_id: userId,
@@ -171,9 +194,21 @@
 
 
 
-        function removeContact(contactId) {
-            console.log("Removing contact:", contactId);
-            // Implement the logic to remove a contact
+        function removeContact(id, userId, targetUserId) {
+
+            const payload = {
+                type: "remove_contact",
+                contact_id: id,
+                user_id: userId,
+                target_user_id: targetUserId
+            };
+
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(payload));
+                console.log("Removed contact ", payload);
+            } else {
+                console.error("WebSocket connection is not open.");
+            }
         }
 
 
