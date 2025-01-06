@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -130,6 +131,7 @@ func (h *Handler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
+		log.Printf("Error hashing password: %v", err)
 		http.Error(w, "Failed to hash password", http.StatusInternalServerError)
 		return
 	}
@@ -137,7 +139,13 @@ func (h *Handler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Save the user
 	if err := h.UserRepo.CreateUser(&user); err != nil {
-		http.Error(w, "User already exists", http.StatusConflict)
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			http.Error(w, "User with this username or email already exists", http.StatusConflict)
+			return
+		}
+
+		log.Printf("Error creating user: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -160,7 +168,7 @@ func (h *Handler) ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) 
 	// Fetch the user
 	user, err := h.UserRepo.GetUserByUsername(request.Username)
 	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
+		http.Error(w, "User with this username or does not exist", http.StatusConflict)
 		return
 	}
 

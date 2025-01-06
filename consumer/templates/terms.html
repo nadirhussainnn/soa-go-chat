@@ -3,33 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Terms and Conditions - ChatApp</title>
+    <title>Terms and Conditions - GO CHAT</title>
     <link rel="stylesheet" href="/static/index.css">
+    <style>
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .terms-section {
+            text-align: center;
+            padding: 30px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #0078d7;
+            margin-bottom: 20px;
+        }
+
+        ul {
+            list-style: none;
+            text-align: left;
+            padding: 0;
+        }
+
+        ul li {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+
+        ul li i {
+            color: #0078d7;
+            margin-right: 10px;
+        }
+
+        .emoji {
+            font-size: 1.2rem;
+        }
+
+        .section-title {
+            color: #444;
+            margin: 20px 0;
+            font-weight: bold;
+            font-size: 1.3rem;
+        }
+
+        .icon {
+            color: #0078d7;
+            margin-right: 8px;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Include Header -->
-        {{ template "header.html" }}
+    <div>
 
-        <!-- Terms Content -->
-        <main>
-            <section class="terms-section">
-                <h1>Terms and Conditions</h1>
-                <p>
-                    Welcome to ChatApp. By using our platform, you agree to the following terms and conditions...
-                </p>
-                <p>
-                    1. ChatApp is intended for personal communication only. <br>
-                    2. Users must not share harmful or illegal content. <br>
-                    3. ChatApp reserves the right to terminate accounts for violations.
-                </p>
-            </section>
-        </main>
+                    <!-- Include Header -->
+                    {{ template "header.html" }}
 
-        <!-- Footer -->
-        <footer>
-            <p>&copy; 2024 ChatApp. All rights reserved.</p>
-        </footer>
+        <div class="container">
+    
+            <!-- Terms Content -->
+            <main>
+                <section class="terms-section">
+                    <h1>Terms and Conditions</h1>
+                    <p>Welcome to <strong>GO CHAT</strong>! 🟢 By using our platform, you agree to the terms outlined below. Please read them carefully.</p>
+    
+                    <!-- Section 1: Introduction -->
+                    <h2 class="section-title"><i class="icon">🔰</i> Introduction</h2>
+                    <p>GO CHAT is a lightweight communication platform designed for personal and casual use. Our goal is to connect you with others quickly and efficiently.</p>
+    
+                    <!-- Section 2: User Responsibilities -->
+                    <h2 class="section-title"><i class="icon">📜</i> User Responsibilities</h2>
+                    <ul>
+                        <li><i class="icon">⚠️</i> <strong>Content Responsibility:</strong> You are solely responsible for any messages, media, or data you share.</li>
+                        <li><i class="icon">🔒</i> <strong>Privacy Warning:</strong> Chats on GO CHAT are not end-to-end encrypted. Avoid sharing sensitive or private information.</li>
+                        <li><i class="icon">📵</i> <strong>No Harmful Content:</strong> Do not use GO CHAT to share illegal, harmful, or explicit content.</li>
+                        <li><i class="icon">⚡</i> <strong>Respect Community Rules:</strong> Engage with others respectfully. Harassment or abusive behavior will result in account termination.</li>
+                    </ul>
+    
+                    <!-- Section 3: Platform Limitations -->
+                    <h2 class="section-title"><i class="icon">📉</i> Platform Limitations</h2>
+                    <ul>
+                        <li><i class="icon">⚙️</i> <strong>No Guarantees:</strong> GO CHAT is a beta platform. We do not guarantee uninterrupted services or data retention.</li>
+                        <li><i class="icon">🚫</i> <strong>Limited Security:</strong> This platform is for casual use only. Secure communications require dedicated, encrypted solutions.</li>
+                        <li><i class="icon">📂</i> <strong>Data Storage:</strong> Uploaded files and chats may be deleted after a certain period. Regular backups are recommended.</li>
+                    </ul>
+    
+                    <!-- Section 4: Copyright -->
+                    <h2 class="section-title"><i class="icon">©️</i> Copyright and Ownership</h2>
+                    <ul>
+                        <li><i class="icon">📚</i> <strong>Intellectual Property:</strong> The GO CHAT app, logo, and codebase are owned by the developers.</li>
+                        <li><i class="icon">📜</i> <strong>Usage Restriction:</strong> You may not reverse-engineer, copy, or redistribute any part of this app without permission.</li>
+                        <li><i class="icon">⚖️</i> <strong>Fair Use:</strong> Personal use is permitted, but misuse or modification for illegal purposes is strictly prohibited.</li>
+                    </ul>
+    
+                    <!-- Section 5: Liability -->
+                    <h2 class="section-title"><i class="icon">⚖️</i> Liability</h2>
+                    <ul>
+                        <li><i class="icon">🙅</i> GO CHAT is not liable for any data loss, breaches, or interruptions during usage.</li>
+                        <li><i class="icon">🤝</i> By using this app, you agree to use it responsibly and at your own risk.</li>
+                        <li><i class="icon">⚠️</i> Users who violate our terms may have their accounts suspended or terminated without prior notice.</li>
+                    </ul>
+    
+                    <p>💬 Thank you for choosing GO CHAT! For questions or concerns, contact us at <a href="mailto:support@gochat.com">support@gochat.com</a>.</p>
+                </section>
+            </main>
+        </div>
+                            <!-- Include Header -->
+                            {{ template "footer.html" }}
+
     </div>
+
 </body>
 </html>

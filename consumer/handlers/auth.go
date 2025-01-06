@@ -2,6 +2,7 @@ package auth
 
 import (
 	"bytes"
+	"consumer/utils"
 	"encoding/json"
 	"html/template"
 	"log"
@@ -27,6 +28,30 @@ func renderLoginWithError(w http.ResponseWriter, errorMessage string) {
 	}
 }
 
+// Helper function to render the login template with an error message
+func renderRegisterWithError(w http.ResponseWriter, errorMessage string) {
+	tmpl := template.Must(template.ParseGlob("templates/*.html"))
+	err := tmpl.ExecuteTemplate(w, "register.html", map[string]interface{}{
+		"ErrorMessage": errorMessage,
+	})
+	if err != nil {
+		log.Printf("[renderRegisterWithError] Failed to render register template: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+}
+
+// Helper function to render the login template with an error message
+func renderResetPassWithError(w http.ResponseWriter, errorMessage string) {
+	tmpl := template.Must(template.ParseGlob("templates/*.html"))
+	err := tmpl.ExecuteTemplate(w, "forgot_password.html", map[string]interface{}{
+		"ErrorMessage": errorMessage,
+	})
+	if err != nil {
+		log.Printf("[renderResetPasswordWithError] Failed to render reset_password template: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+}
+
 func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
@@ -41,7 +66,6 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[HandleLogin] Error communicating with Authentication Service: %v", err)
 		renderLoginWithError(w, "Internal Server Error")
 
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
@@ -150,6 +174,13 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("email")
 	password := r.FormValue("password")
 	GATEWAY_URL := os.Getenv("GATEWAY_URL")
+
+	// Performing validation on input data
+	if err := utils.ValidateRegistrationInput(username, email, password); err != nil {
+		renderRegisterWithError(w, err.Error())
+		return
+	}
+
 	// Send data to Authentication Service
 	payload := map[string]string{"username": username, "email": email, "password": password}
 	jsonPayload, _ := json.Marshal(payload)
@@ -157,16 +188,24 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	resp, err := http.Post(GATEWAY_URL+"/auth/register", "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		log.Printf("Error communicating with Authentication Service: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		renderRegisterWithError(w, "Internal Server Error")
 		return
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusCreated {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
-	} else {
-		http.Error(w, "Registration failed", http.StatusBadRequest)
+	// Check for specific error responses from the backend
+	if resp.StatusCode == http.StatusConflict {
+		renderRegisterWithError(w, "User with this username or email already exists")
+		return
 	}
+
+	if resp.StatusCode != http.StatusCreated {
+		renderRegisterWithError(w, "Registration failed. Please try again.")
+		return
+	}
+
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+
 }
 
 // HandleLogin processes login requests
@@ -217,6 +256,12 @@ func HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	newPassword := r.FormValue("new_password")
 	GATEWAY_URL := os.Getenv("GATEWAY_URL")
 
+	// Performing validation on input data
+	if err := utils.ValidatePassword(newPassword); err != nil {
+		renderResetPassWithError(w, err.Error())
+		return
+	}
+
 	// Send data to Authentication Service
 	payload := map[string]string{"username": username, "new_password": newPassword}
 	jsonPayload, _ := json.Marshal(payload)
@@ -224,16 +269,23 @@ func HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	resp, err := http.Post(GATEWAY_URL+"/auth/forgot-password", "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		log.Printf("Error communicating with Authentication Service: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		renderResetPassWithError(w, "Internal Server Error")
 		return
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
-	} else {
-		http.Error(w, "Failed to reset password", http.StatusBadRequest)
+	// Check for specific error responses from the backend
+	if resp.StatusCode == http.StatusConflict {
+		renderRegisterWithError(w, "User with this username or email does not exists")
+		return
 	}
+
+	if resp.StatusCode != http.StatusOK {
+		renderResetPassWithError(w, "Failed to reset password. Please try again.")
+		return
+	}
+
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
 func HandleContacts(w http.ResponseWriter, r *http.Request) {
