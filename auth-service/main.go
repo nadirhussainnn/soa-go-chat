@@ -59,7 +59,8 @@ func main() {
 	http.HandleFunc("/register", handler.RegisterHandler)
 	http.HandleFunc("/login", handler.LoginHandler)
 	http.HandleFunc("/forgot-password", handler.ForgotPasswordHandler)
-	http.HandleFunc("/logout", handler.LogoutHandler)
+	http.Handle("/logout", middleware.RequireAuth(http.HandlerFunc(handler.LogoutHandler)))
+	// http.HandleFunc("/logout", handler.LogoutHandler)
 	http.Handle("/search", middleware.RequireAuth(http.HandlerFunc(handler.SearchContacts)))
 
 	log.Println("Auth service running on port", PORT)

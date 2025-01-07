@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"encoding/base64"
 	"fmt"
 	"log"
 	"messaging-service/models"
@@ -68,7 +67,9 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 			FileName    string `json:"file_name,omitempty"`
 			ChunkIndex  int    `json:"chunk_index,omitempty"`
 			TotalChunks int    `json:"total_chunks,omitempty"`
-			ChunkData   string `json:"chunk_data,omitempty"`
+			// ChunkData   string `json:"chunk_data,omitempty"`
+			ChunkData []byte `json:"chunk_data,omitempty"` // Accept as byte array
+
 		}
 		err := conn.ReadJSON(&message)
 		if err != nil {
@@ -162,13 +163,9 @@ type ChunkedFile struct {
 
 var chunkedFiles = make(map[string]*ChunkedFile)
 
-func (h *WebSocketHandler) HandleChunkedFileMessage(senderID, receiverID, fileID, fileName string, chunkIndex, totalChunks int, chunkData string) {
+func (h *WebSocketHandler) HandleChunkedFileMessage(senderID, receiverID, fileID, fileName string, chunkIndex, totalChunks int, chunkData []byte) {
 	// Decode the chunk from Base64
-	data, err := base64.StdEncoding.DecodeString(chunkData)
-	if err != nil {
-		log.Printf("Failed to decode file chunk: %v", err)
-		return
-	}
+	// data, err := base64.StdEncoding.DecodeString(chunkData)
 
 	h.Mutex.Lock()
 	defer h.Mutex.Unlock() // Ensure mutex is unlocked exactly once
@@ -188,7 +185,7 @@ func (h *WebSocketHandler) HandleChunkedFileMessage(senderID, receiverID, fileID
 	}
 
 	// Store the chunk
-	chunkedFile.Chunks[chunkIndex] = data
+	chunkedFile.Chunks[chunkIndex] = chunkData
 
 	// Calculate progress
 	progress := float64(len(chunkedFile.Chunks)) / float64(totalChunks) * 100
