@@ -55,7 +55,9 @@ func ValidateRegistrationInput(username, email, password string) error {
 	}
 
 	// Validate password
-	ValidatePassword(password)
+	if err := ValidatePassword(password); err != nil {
+		return err
+	}
 	return nil
 }
 

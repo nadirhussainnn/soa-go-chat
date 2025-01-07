@@ -6,11 +6,11 @@ package handlers
 import (
 	"auth-service/models"
 	"auth-service/repository"
+	"auth-service/utils"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -38,14 +38,13 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch the user by their username
-	user, err := h.UserRepo.GetUserByUsername(credentials.Username)
-	if err != nil {
+	user, err := h.UserRepo.GetUserByUsernameOrEmail(credentials.Username, credentials.Username)
+	if err != nil || user == nil { // Check for nil user
 		http.Error(w, `{"message": "Invalid username or user does not exist"}`, http.StatusUnauthorized)
 		w.Header().Set("Content-Type", "application/json")
 		return
-
 	}
+
 	// Compare password sent by user, and one stored in database
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(credentials.Password)); err != nil {
 		http.Error(w, `{"message": "Invalid password"}`, http.StatusUnauthorized)
@@ -131,6 +130,29 @@ func (h *Handler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Print("Email", user.Email)
+	log.Print("Username", user.Username)
+	// Check if a user with the same username or email already exists
+	if existingUser, _ := h.UserRepo.GetUserByUsernameOrEmail(user.Username, user.Email); existingUser != nil {
+		isUsernameConflict := existingUser.Username == user.Username
+		isEmailConflict := existingUser.Email == user.Email
+
+		if isUsernameConflict && isEmailConflict {
+			http.Error(w, "User with this username and email already exists\n", http.StatusConflict)
+		} else if isUsernameConflict {
+			http.Error(w, "User with this username already exists\n", http.StatusConflict)
+		} else if isEmailConflict {
+			http.Error(w, "User with this email already exists\n", http.StatusConflict)
+		}
+		return
+	}
+
+	// Performing validation on input data
+	if err := utils.ValidateRegistrationInput(user.Username, user.Email, user.Password); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -142,11 +164,6 @@ func (h *Handler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Save the user
 	if err := h.UserRepo.CreateUser(&user); err != nil {
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			http.Error(w, "User with this username or email already exists", http.StatusConflict)
-			return
-		}
-
 		log.Printf("Error creating user: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
@@ -168,9 +185,15 @@ func (h *Handler) ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Fetch the user by their username
-	user, err := h.UserRepo.GetUserByUsername(request.Username)
-	if err != nil {
+	// Performing validation on input data
+	if err := utils.ValidatePassword(request.NewPassword); err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+
+	// Fetch the user by their username or email whatever is provided by user
+	user, err := h.UserRepo.GetUserByUsernameOrEmail(request.Username, request.Username)
+	if err != nil || user == nil { // Check for nil user
 		http.Error(w, "User with this username or does not exist", http.StatusConflict)
 		return
 	}
