@@ -12,7 +12,7 @@ import (
 // Defines the interface for user-related database operations.
 type UserRepository interface {
 	CreateUser(user *models.User) error
-	GetUserByUsername(username string) (*models.User, error)
+	GetUserByUsernameOrEmail(username, email string) (*models.User, error)
 	GetUserByID(id string) (*models.User, error)
 	UpdateUser(user *models.User) error
 	SearchUser(query, excludeUserID string) ([]models.User, error)
@@ -60,15 +60,22 @@ func (r *userRepository) SearchUser(query, excludeUserID string) ([]models.User,
 //	Retrieves a user from the database based on their username or email.
 //
 // Params:
-//   - username: A string representing the username or email of the user to retrieve.
+//   - username: A string representing the username of the user to retrieve.
+//   - email: A string representing the email of the user to retrieve.
 //
 // Returns:
 //   - *models.User: A pointer to the User object if found.
 //   - error: An error object if the operation fails or the user is not found.
-func (r *userRepository) GetUserByUsername(username string) (*models.User, error) {
+func (r *userRepository) GetUserByUsernameOrEmail(username, email string) (*models.User, error) {
 	var user models.User
 	err := r.db.Where("username = ? OR email = ?", username, username).First(&user).Error
-	return &user, err
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil // Suppress the "record not found" error
+		}
+		return nil, err
+	}
+	return &user, nil
 }
 
 // Retrieves a user from the database using their unique ID.
@@ -81,7 +88,13 @@ func (r *userRepository) GetUserByUsername(username string) (*models.User, error
 func (r *userRepository) GetUserByID(id string) (*models.User, error) {
 	var user models.User
 	err := r.db.Where("id = ?", id).First(&user).Error
-	return &user, err
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil // Suppress the "record not found" error
+		}
+		return nil, err
+	}
+	return &user, nil
 }
 
 // Updates the details of an existing user in the database.
