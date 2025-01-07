@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - ChatApp</title>
+    <title>Login - GO CHAT</title>
     <link rel="stylesheet" href="/static/index.css">
 </head>
 <body>
@@ -16,28 +16,55 @@
             <section class="form-section">
                 <h1>Login</h1>
                 <form action="/login" method="POST" class="login-form">
-                    <label for="username">Username:</label>
+                    <label for="username">Username or Email:</label>
                     <input type="text" id="username" name="username" required>
 
                     <label for="password">Password:</label>
-                    <input type="password" id="password" name="password" required>
+                    <div class="password-container">
+                        <input type="password" id="password" name="password" required>
+                        <span class="toggle-password" onclick="togglePasswordVisibility()">👁️</span>
+                    </div>
 
+                    <div class="checkbox">
+                        <label for="terms"><a href="/forgot-password">Forgot Password?</a></label>
+                    </div>
+
+                    {{ if .ErrorMessage }}
+                <div class="error-message">{{ .ErrorMessage }}</div>
+                {{ end }}
+                
                     <button type="submit" class="btn">Login</button>
+                    <div class="additional-links">
+                        New to GO CHAT ?
+                        <a href="/register">Register</a>
+                    </div>
                 </form>
 
-                <div class="additional-links">
-                    <a href="/register" class="btn small-btn">Register</a>
-                    <a href="/forgot-password" class="btn small-btn">Forgot Password?</a>
-                </div>
             </section>
         </main>
 
         <!-- Footer -->
         <footer>
-            <p>&copy; 2024 ChatApp. All rights reserved.</p>
+            <p>&copy; 2024 GO CHAT. All rights reserved.</p>
         </footer>
     </div>
     
 
+    <script>
+
+        function togglePasswordVisibility() {
+                const passwordField = document.getElementById('password');
+                const toggleIcon = document.querySelector('.toggle-password');
+                
+                if (passwordField.type === 'password') {
+                    passwordField.type = 'text';
+                    toggleIcon.textContent = '🙈'; // Change icon to "hide"
+                } else {
+                    passwordField.type = 'password';
+                    toggleIcon.textContent = '👁️'; // Change icon to "show"
+                }
+            }
+        
+            </script>
 </body>
 </html>

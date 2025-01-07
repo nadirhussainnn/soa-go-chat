@@ -77,6 +77,10 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 		case "send_contact_request":
 			// In this Target user is one who received the request, not the one who sent
 			h.HandleSendContactRequest(message.UserID, message.TargetUserID)
+		case "remove_contact":
+			// In this Target user is one who is being removed, and UserID is one who is removing someone
+			h.HandleRemoveContact(message.UserID, message.TargetUserID)
+
 		case "accept_contact_request":
 			// In this Target user is one who sent the request, not the one who received
 			h.HandleAcceptRejectContactRequest(message.RequestID, message.Action, userID, message.TargetUserID)
@@ -164,6 +168,72 @@ func (h *WebSocketHandler) HandleSendContactRequest(senderID, receiverID string)
 	}
 }
 
+func (h *WebSocketHandler) HandleRemoveContact(senderID, receiverID string) {
+	// Save the contact request in the database
+
+	log.Print("Removing user", senderID, receiverID)
+	err := h.Repo.RemoveContact(senderID, receiverID)
+	if err != nil {
+		log.Printf("Failed to remove contact from DB: %v", err)
+		return
+	}
+
+	err = h.Repo.RemoveContact(receiverID, senderID)
+	if err != nil {
+		log.Printf("Failed to remove contact from DB: %v", err)
+		return
+	}
+
+	// Notify sender of successful removal
+	h.Mutex.Lock()
+	senderConn, senderOnline := h.Connections[senderID]
+	h.Mutex.Unlock()
+
+	if senderOnline {
+		if err := senderConn.WriteJSON(map[string]interface{}{
+			"type": CONTACT_REMOVED_ACK,
+		}); err != nil {
+			log.Printf("Failed to send acknowledgment to sender %s: %v", senderID, err)
+		}
+	}
+
+	// Check if the recipient is online
+	h.Mutex.Lock()
+	conn, online := h.Connections[receiverID]
+	h.Mutex.Unlock()
+
+	if online {
+
+		// Add a custom "type" field for the WebSocket payload
+		payload := map[string]interface{}{
+			"type": CONTACT_REMOVED,
+		}
+
+		// Send the request in real-time
+		if err := conn.WriteJSON(payload); err != nil {
+			log.Printf("Failed to send real-time contact request to user %s: %v", receiverID, err)
+		} else {
+			log.Printf("Real-time contact request sent to user %s", receiverID)
+		}
+	} else {
+		log.Print("Not online", receiverID, senderID)
+		// Notify via AMQP for later delivery
+		err := h.AMQPChannel.Publish(
+			"",
+			NOTIFICATION_SERVICE,
+			false,
+			false,
+			amqp.Publishing{
+				ContentType: "application/json",
+				Body:        []byte(fmt.Sprintf(`{"type":"contact_request", "user_id":"%s", "target_user_id":"%s"}`, senderID, receiverID)),
+			},
+		)
+		if err != nil {
+			log.Printf("Failed to notify offline user %s via AMQP: %v", receiverID, err)
+		}
+		log.Printf("User %s is offline. Notification queued via AMQP.", receiverID)
+	}
+}
 func (h *WebSocketHandler) HandleAcceptRejectContactRequest(requestID, action, userID, targetUserID string) {
 	// Fetch the request
 	log.Printf("Processing %s contact request: %s by %s for %s", action, requestID, userID, targetUserID)
@@ -203,15 +273,10 @@ func (h *WebSocketHandler) HandleAcceptRejectContactRequest(requestID, action, u
 			log.Printf("Failed to add contact: %v", err)
 			return
 		}
-	} else if action == "reject" {
-		request.Status = "rejected"
-	} else {
-		log.Printf("Invalid action: %s", action)
-		return
 	}
 
 	// Update the request in the database
-	err = h.Repo.UpdateContactRequest(request)
+	err = h.Repo.DeleteRequest(request)
 	if err != nil {
 		log.Printf("Failed to update request: %v", err)
 		return

@@ -3,7 +3,7 @@ package main
 import (
 	"consumer/amqp"
 
-	auth "consumer/handlers"
+	handlers "consumer/handlers"
 	"consumer/middleware"
 	"consumer/utils"
 	"html/template"
@@ -40,7 +40,7 @@ func main() {
 		if r.Method == http.MethodGet {
 			tmpl.ExecuteTemplate(w, "login.html", nil)
 		} else if r.Method == http.MethodPost {
-			auth.HandleLogin(w, r)
+			handlers.HandleLogin(w, r)
 		}
 	})
 
@@ -48,7 +48,7 @@ func main() {
 		if r.Method == http.MethodGet {
 			tmpl.ExecuteTemplate(w, "register.html", nil)
 		} else if r.Method == http.MethodPost {
-			auth.HandleRegister(w, r)
+			handlers.HandleRegister(w, r)
 		}
 	})
 
@@ -56,24 +56,24 @@ func main() {
 		if r.Method == http.MethodGet {
 			tmpl.ExecuteTemplate(w, "forgot_password.html", nil)
 		} else {
-			auth.HandleForgotPassword(w, r)
+			handlers.HandleForgotPassword(w, r)
 		}
 	})
 
 	http.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
-		auth.HandleLogout(w, r)
+		handlers.HandleLogout(w, r)
 	})
 
 	http.HandleFunc("/terms", func(w http.ResponseWriter, r *http.Request) {
 		tmpl.ExecuteTemplate(w, "terms.html", nil)
 	})
 
-	http.Handle("/dashboard", authMiddleware.RequireAuth(http.HandlerFunc(auth.HandleDashboard)))
-	http.Handle("/contacts", authMiddleware.RequireAuth(http.HandlerFunc(auth.HandleContacts)))
-	http.Handle("/requests", authMiddleware.RequireAuth(http.HandlerFunc(auth.HandleRequests)))
-	http.Handle("/search", authMiddleware.RequireAuth(http.HandlerFunc(auth.HandleSearch)))
+	http.Handle("/dashboard", authMiddleware.RequireAuth(http.HandlerFunc(handlers.HandleDashboard)))
+	http.Handle("/contacts", authMiddleware.RequireAuth(http.HandlerFunc(handlers.HandleContacts)))
+	http.Handle("/requests", authMiddleware.RequireAuth(http.HandlerFunc(handlers.HandleRequests)))
+	http.Handle("/search", authMiddleware.RequireAuth(http.HandlerFunc(handlers.HandleSearch)))
 
-	http.Handle("/messages", authMiddleware.RequireAuth(http.HandlerFunc(auth.HandleMessages)))
+	http.Handle("/messages", authMiddleware.RequireAuth(http.HandlerFunc(handlers.HandleMessages)))
 
 	// Start the HTTP server
 	log.Println("Consumer service running on port", PORT)

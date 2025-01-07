@@ -1,7 +1,13 @@
 <header>
-    <div class="logo">ChatApp</div>
+    <div class="logo" onclick="goHome()">GO CHAT</div>
     <nav>
-        <a href="/login" class="btn">Login</a>
-        <a href="/register" class="btn">Register</a>
+        <a href="/login" >Login</a>
+        <a href="/register" >Register</a>
     </nav>
 </header>
+
+<script>
+    function goHome(){
+        location.href = "/"
+    }
+</script>

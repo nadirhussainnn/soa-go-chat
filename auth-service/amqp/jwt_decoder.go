@@ -116,7 +116,7 @@ func (jd *JWTDecoder) startConsumer(conn *amqp.Connection, requestQueue, respons
 			}
 
 			// Decode the JWT
-			response := jd.decodeJWT(request.SessionToken)
+			response := jd.DecodeJWT(request.SessionToken)
 			log.Print("Decoded JWT", response)
 			responseBytes, err := json.Marshal(response)
 			if err != nil {
@@ -142,7 +142,7 @@ func (jd *JWTDecoder) startConsumer(conn *amqp.Connection, requestQueue, respons
 	}()
 }
 
-func (jd *JWTDecoder) decodeJWT(token string) JWTDecodeResponse {
+func (jd *JWTDecoder) DecodeJWT(token string) JWTDecodeResponse {
 
 	tkn, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {

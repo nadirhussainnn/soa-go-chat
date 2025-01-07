@@ -11,8 +11,9 @@ type ContactsRepository interface {
 	AcceptOrReject(contact *models.Contact) error
 	AddContactRequest(req *models.ContactRequest) error
 	GetContactsByUserID(userID uuid.UUID) ([]models.Contact, error)
+	RemoveContact(senderID, receiverID string) error
 	GetContactRequestByID(userID string) (*models.ContactRequest, error)
-	UpdateContactRequest(req *models.ContactRequest) error
+	DeleteRequest(req *models.ContactRequest) error
 	GetContactRequestsByUserID(userID uuid.UUID) ([]models.ContactRequest, error)
 }
 
@@ -38,8 +39,12 @@ func (r *contactsRepository) GetContactsByUserID(userID uuid.UUID) ([]models.Con
 	return contacts, err
 }
 
-func (r *contactsRepository) UpdateContactRequest(req *models.ContactRequest) error {
-	return r.db.Model(&models.ContactRequest{}).Where("id = ?", req.ID).Updates(req).Error
+func (r *contactsRepository) RemoveContact(senderID, receiverID string) error {
+	return r.db.Where("user_id = ? AND contact_id = ?", senderID, receiverID).Delete(&models.Contact{}).Error
+}
+
+func (r *contactsRepository) DeleteRequest(req *models.ContactRequest) error {
+	return r.db.Where("id = ?", req.ID).Delete(&models.ContactRequest{}).Error
 }
 
 func (r *contactsRepository) GetContactRequestsByUserID(userID uuid.UUID) ([]models.ContactRequest, error) {

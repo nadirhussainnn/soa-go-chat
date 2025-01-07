@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -36,12 +37,15 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	// Fetch the user
 	user, err := h.UserRepo.GetUserByUsername(credentials.Username)
 	if err != nil {
-		http.Error(w, "Invalid username", http.StatusUnauthorized)
+		http.Error(w, `{"message": "Invalid username or user does not exist"}`, http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json") // Ensure the response is JSON
 		return
+
 	}
 	// Compare passwords
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(credentials.Password)); err != nil {
-		http.Error(w, "Invalid password", http.StatusUnauthorized)
+		http.Error(w, `{"message": "Invalid password"}`, http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json") // Ensure the response is JSON
 		return
 	}
 
@@ -55,7 +59,8 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	})
 	tokenString, err := token.SignedString(JWT_SECRET)
 	if err != nil {
-		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+		http.Error(w, `{"message": "Failed to generate token"}`, http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json") // Ensure the response is JSON
 		return
 	}
 	// Create a session
@@ -65,7 +70,8 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		Token:  tokenString,
 	}
 	if err := h.SessionRepo.CreateSession(session); err != nil {
-		http.Error(w, "Failed to create session", http.StatusInternalServerError)
+		http.Error(w, `{"message": "Failed to create session"}`, http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json") // Ensure the response is JSON
 		return
 	}
 	// Set the session cookie
@@ -125,6 +131,7 @@ func (h *Handler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
+		log.Printf("Error hashing password: %v", err)
 		http.Error(w, "Failed to hash password", http.StatusInternalServerError)
 		return
 	}
@@ -132,7 +139,13 @@ func (h *Handler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Save the user
 	if err := h.UserRepo.CreateUser(&user); err != nil {
-		http.Error(w, "User already exists", http.StatusConflict)
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			http.Error(w, "User with this username or email already exists", http.StatusConflict)
+			return
+		}
+
+		log.Printf("Error creating user: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -155,7 +168,7 @@ func (h *Handler) ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) 
 	// Fetch the user
 	user, err := h.UserRepo.GetUserByUsername(request.Username)
 	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
+		http.Error(w, "User with this username or does not exist", http.StatusConflict)
 		return
 	}
 
@@ -186,7 +199,15 @@ func (h *Handler) SearchContacts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	contacts, err := h.UserRepo.SearchUser(query)
+	userID, ok := r.Context().Value("user_id").(string)
+
+	if !ok || userID == "" {
+		log.Print("User ID not found in context")
+		http.Error(w, "Unauthorized: user_id is required", http.StatusUnauthorized)
+		return
+	}
+
+	contacts, err := h.UserRepo.SearchUser(query, userID)
 	if err != nil {
 		http.Error(w, "Failed to search Users", http.StatusInternalServerError)
 		return
@@ -195,28 +216,4 @@ func (h *Handler) SearchContacts(w http.ResponseWriter, r *http.Request) {
 	// Send the matching contacts as JSON
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(contacts)
-}
-
-// GetUserDetailsHandler fetches user details by user ID
-func (h *Handler) GetUserDetailsHandler(w http.ResponseWriter, r *http.Request) {
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		http.Error(w, "user_id is required", http.StatusBadRequest)
-		return
-	}
-
-	user, err := h.UserRepo.GetUserByID(userID)
-	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	response := map[string]string{
-		"id":       user.ID.String(),
-		"username": user.Username,
-		"email":    user.Email,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }

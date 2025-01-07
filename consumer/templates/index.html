@@ -3,44 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat App</title>
+    <title>GO CHAT - Welcome</title>
     <link rel="stylesheet" href="/static/index.css">
 </head>
 <body>
     <div class="container">
-        <!-- Header Section -->
-        <header>
-            <div class="logo">ChatApp</div>
-            <nav>
-                <a href="/login" class="btn">Login</a>
-                <a href="/register" class="btn">Register</a>
-            </nav>
-        </header>
+        <!-- Include Header -->
+        {{ template "header.html" }}
 
         <!-- Main Section -->
         <main>
-            <section class="hero">
-                <h1>Welcome to ChatApp</h1>
-                <p>
-                    ChatApp is your go-to platform for seamless, real-time communication. 
-                    Whether you're connecting with friends, family, or colleagues, ChatApp 
-                    makes it easy to stay in touch. Our intuitive interface, secure messaging, 
-                    and blazing-fast performance are designed to provide an unparalleled experience.
-                </p>
-                <p>
-                    Dive into a world where communication knows no boundaries. 
-                    ChatApp is packed with features like one-on-one messaging, 
-                    group chats, file sharing, and more. Join us today and discover 
-                    the future of online communication.
-                </p>
-                <a href="/register" class="get-started-btn">Get Started</a>
+            <section class="welcome-section">
+                <!-- Features List -->
+                <div class="features">
+                    <h2>Your GO to GO CHAT</h2>
+                    <ul>
+                        <li>✅ Smooth <span>REGISTRATION</span> and LOGIN process</li>
+                        <li>🔑 Don't worry if you <span>FORGOT</span> your password</li>
+                        <li>🔍 <span>SEARCH</span> for your friends and send them REQUESTS</li>
+                        <li>✔️ <span>ACCEPT</span> or REJECT</span> requests gracefully</li>
+                        <li>💬 Start <span>CHATTING</span> right away</li>
+                        <li>🎉 Enjoy <span>AMAZING</span> experiences in chat</li>
+                        <li>📁 SEND various <span>FILE</span> types </li>
+                        <li>🌐 <span>DOWNLOAD</span> your files whenever needed</li>
+                        <li>😊 Send <span>EMOJIS</span> and much more!</li>
+                    </ul>
+                </div>
+
+                <div class="illustration-image">
+
+                    <img src="/static/images/illustration.png" />
+                </div>
             </section>
         </main>
 
         <!-- Footer Section -->
-        <footer>
-            <p>&copy; 2024 ChatApp. All rights reserved.</p>
-        </footer>
+        {{ template "footer.html" }}
     </div>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - ChatApp</title>
+    <title>Register - GO CHAT</title>
     <link rel="stylesheet" href="/static/index.css">
 </head>
 <body>
@@ -20,29 +20,56 @@
                     <input type="text" id="username" name="username" required>
 
                     <label for="email">Email:</label>
-                    <input type="text" id="email" name="email" required>
+                    <input type="email" id="email" name="email" required>
+
 
                     <label for="password">Password:</label>
-                    <input type="password" id="password" name="password" required>
-
+                    <div class="password-container">
+                        <input type="password" id="password" name="password" required>
+                        <span class="toggle-password" onclick="togglePasswordVisibility()">👁️</span>
+                    </div>
                     <div class="checkbox">
                         <input type="checkbox" id="terms" name="terms" required>
                         <label for="terms">I accept the <a href="/terms">terms and conditions</a></label>
                     </div>
 
+
+                    {{ if .ErrorMessage }}
+                <div class="error-message">{{ .ErrorMessage }}</div>
+                {{ end }}
+
                     <button type="submit" class="btn">Register</button>
+
+                    <div class="additional-links">
+                        <p>Alread have an account? </p>
+                        <a href="/login">Login</a>
+                    </div>
                 </form>
 
-                <div class="additional-links">
-                    <a href="/login" class="btn small-btn">Login</a>
-                </div>
             </section>
         </main>
 
         <!-- Footer -->
         <footer>
-            <p>&copy; 2024 ChatApp. All rights reserved.</p>
+            <p>&copy; 2024 GO CHAT. All rights reserved.</p>
         </footer>
     </div>
+
+    <script>
+
+function togglePasswordVisibility() {
+        const passwordField = document.getElementById('password');
+        const toggleIcon = document.querySelector('.toggle-password');
+        
+        if (passwordField.type === 'password') {
+            passwordField.type = 'text';
+            toggleIcon.textContent = '🙈'; // Change icon to "hide"
+        } else {
+            passwordField.type = 'password';
+            toggleIcon.textContent = '👁️'; // Change icon to "show"
+        }
+    }
+
+    </script>
 </body>
 </html>

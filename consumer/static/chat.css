@@ -77,6 +77,45 @@
   color: #999;
 }
 
+#message-form{
+  display: flex;
+  align-items: center;
+}
+
+.emoji-drawer {
+  position: absolute; /* Allow dynamic placement */
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: 120px;
+  padding: 8px;
+  background: white;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 1000; /* Ensure it appears above other elements */
+}
+
+
+.emoji-drawer.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.emoji {
+  text-align: center;
+  font-size: 24px;
+  padding: 8px;
+}
+
+.emoji:hover {
+  cursor: pointer;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+}
+
+
 /* Chat Input */
 .chat-input {
   display: flex;

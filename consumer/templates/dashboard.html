@@ -112,6 +112,7 @@
       const GATEWAY_HTTP_URL = "{{ .GatewayHttpURL }}";
       console.log("GATEWAY_WS_URL", GATEWAY_WS_URL);
       console.log("GATEWAY_HTTP", GATEWAY_HTTP_URL);
+
       // Global WebSocket connection
       const ws = new WebSocket(`${GATEWAY_WS_URL}/messages?user_id=${userId}`);
 
@@ -166,14 +167,27 @@
         const chatFooter = document.createElement("footer");
         chatFooter.classList.add("chat-input");
         chatFooter.innerHTML = `
-    <form id="message-form">
-        <input type="text" id="message-input" placeholder="Type a message" required>
-        <label for="attachment">
-            <input type="file" id="attachment" style="display: none;">
-            📎
-        </label>
-        <button type="submit">Send</button>
-    </form>
+      <form id="message-form">
+          <button type="button" onclick="toggleEmojiDrawer(event)">😀</button>
+          <input type="text" id="message-input" placeholder="Type a message" required>
+          <label for="attachment">
+              <input type="file" id="attachment" style="display: none;">
+              📎
+          </label>
+          <button type="submit">Send</button>
+      </form>
+      <div id="drawer" class="emoji-drawer">
+        <div class="emoji" onclick="addEmoji(this.innerHTML)">👍</div>
+        <div class="emoji" onclick="addEmoji(this.innerHTML)">😀</div>
+        <div class="emoji" onclick="addEmoji(this.innerHTML)">😃</div>
+        <div class="emoji" onclick="addEmoji(this.innerHTML)">😄</div>
+        <div class="emoji" onclick="addEmoji(this.innerHTML)">😁</div>
+        <div class="emoji" onclick="addEmoji(this.innerHTML)">😆</div>
+        <div class="emoji" onclick="addEmoji(this.innerHTML)">🩷</div>
+        <div class="emoji" onclick="addEmoji(this.innerHTML)">✅</div>
+        <div class="emoji" onclick="addEmoji(this.innerHTML)">🚀</div>
+        <div class="emoji" onclick="addEmoji(this.innerHTML)">👎</div>
+      </div>
   `;
         chatContainer.appendChild(chatFooter);
 
@@ -198,6 +212,46 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
           })
           .catch((err) => console.error("Error loading messages:", err));
+      }
+
+      function addEmoji(emoji) {
+        const inputEle = document.getElementById("message-input");
+
+        // Get the cursor position
+        const start = inputEle.selectionStart;
+        const end = inputEle.selectionEnd;
+
+        // Get the current value of the input
+        const text = inputEle.value;
+
+        // Insert the emoji at the cursor position
+        inputEle.value = text.slice(0, start) + emoji + text.slice(end);
+
+        // Move the cursor to the end of the inserted emoji
+        inputEle.selectionStart = inputEle.selectionEnd = start + emoji.length;
+
+        // Set focus back to the input
+        inputEle.focus();
+      }
+
+      function toggleEmojiDrawer(event) {
+        const drawer = document.getElementById("drawer");
+        const button = event.target; // The emoji button
+
+        if (drawer.classList.contains("show")) {
+          drawer.classList.remove("show");
+          drawer.style.opacity = "0";
+          drawer.style.visibility = "hidden";
+        } else {
+          // Calculate position of the button
+          const buttonRect = button.getBoundingClientRect();
+          drawer.style.top = `${buttonRect.bottom + window.scrollY}px`;
+          drawer.style.left = `${buttonRect.left + window.scrollX}px`;
+
+          drawer.classList.add("show");
+          drawer.style.opacity = "1";
+          drawer.style.visibility = "visible";
+        }
       }
 
       function appendMessageBubble(message) {
@@ -247,8 +301,6 @@
           credentials: "include", // Also ensure cookies are included automatically
         })
           .then((response) => {
-            console.log("URL is", url);
-            console.log("response", response);
             if (!response.ok) {
               throw new Error("Failed to download file");
             }
@@ -302,7 +354,7 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            const chunkSize = 1024 * 1024; // 1 MB
+            const chunkSize = 256 * 1024; // 256 KB
             const totalChunks = Math.ceil(file.size / chunkSize);
             let currentChunk = 0;
 
@@ -342,19 +394,30 @@
                   file_name: file.name,
                   chunk_index: currentChunk,
                   total_chunks: totalChunks,
-                  chunk_data: btoa(
-                    String.fromCharCode(...new Uint8Array(reader.result))
-                  ),
+                  chunk_data: Array.from(new Uint8Array(reader.result)), // Convert to array
+                  // chunk_data: btoa(
+                  //   String.fromCharCode(...new Uint8Array(reader.result))
+                  // ),
                 };
 
-                ws.send(JSON.stringify(payload));
+                if (ws.readyState === WebSocket.OPEN) {
+                  ws.send(JSON.stringify(payload));
 
-                const progressPercentage =
-                  ((currentChunk + 1) / totalChunks) * 100;
-                progressBar.style.width = `${progressPercentage}%`;
+                  const progressPercentage =
+                    ((currentChunk + 1) / totalChunks) * 100;
+                  progressBar.style.width = `${progressPercentage}%`;
 
-                currentChunk++;
-                setTimeout(sendChunk, 100);
+                  currentChunk++;
+                  // Use `setTimeout` to avoid overwhelming the browser and WebSocket
+                  setTimeout(sendChunk, 50);
+                } else {
+                  console.error("WebSocket is not open. Retrying...");
+                  setTimeout(sendChunk, 500); // Retry after a delay
+                }
+              };
+
+              reader.onerror = (err) => {
+                console.error("FileReader error:", err);
               };
 
               reader.readAsArrayBuffer(blob);
@@ -413,6 +476,23 @@
       ws.onclose = () => {
         console.log("WebSocket connection closed.");
       };
+
+      document.addEventListener("click", (event) => {
+        const drawer = document.getElementById("drawer");
+        const button = document.querySelector(
+          '[onclick="toggleEmojiDrawer(event)"]'
+        );
+
+        if (
+          drawer.classList.contains("show") &&
+          !drawer.contains(event.target) &&
+          event.target !== button
+        ) {
+          drawer.classList.remove("show");
+          drawer.style.opacity = "0";
+          drawer.style.visibility = "hidden";
+        }
+      });
     </script>
   </body>
 </html>
