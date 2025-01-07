@@ -1,3 +1,6 @@
+// Defining the database tables for contacts and requests
+// Author: Nadir Hussain
+
 package models
 
 import (
@@ -6,6 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// Contact represents a user's contact in the system.
 type Contact struct {
 	ID             uuid.UUID      `gorm:"type:uuid;primaryKey"`
 	UserID         uuid.UUID      `gorm:"type:uuid;not null"`
@@ -14,6 +18,7 @@ type Contact struct {
 	ContactDetails *SenderDetails `gorm:"-"`
 }
 
+// ContactRequest represents a request to connect with another user.
 type ContactRequest struct {
 	ID                 uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
 	SenderID           uuid.UUID      `gorm:"type:uuid;not null" json:"sender_id"`
@@ -25,6 +30,7 @@ type ContactRequest struct {
 	CreatedAtFormatted string         `gorm:"-" json:"created_at_formatted,omitempty"`
 }
 
+// SenderDetails represents the basic details of a user (sender or receiver) in the contact system.
 type SenderDetails struct {
 	UserID   string `json:"user_id"`
 	Username string `json:"username"`

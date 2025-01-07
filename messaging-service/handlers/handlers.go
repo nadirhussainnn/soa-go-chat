@@ -1,3 +1,6 @@
+//  Handling HTTP requests related to messaging operations
+// Author: Nadir Hussain
+
 package handlers
 
 import (
@@ -13,11 +16,22 @@ import (
 	"github.com/streadway/amqp"
 )
 
+// MessageHandler manages messaging-related HTTP requests and operations.
 type MessageHandler struct {
 	Repo             repository.MessageRepository
 	WebSocketHandler *utils.WebSocketHandler
 	AMQPConn         *amqp.Connection // Store RabbitMQ connection
 }
+
+//  Retrieves messages exchanged between two users.
+
+// Params:
+// - w: http.ResponseWriter - The HTTP response writer.
+// - r: *http.Request - The HTTP request, containing query parameters "user_id" and "contact_id".
+// Returns:
+// - HTTP 200 with messages in JSON format if successful.
+// - HTTP 400 if user_id or contact_id is missing or invalid.
+// - HTTP 500 if there is an internal server error.
 
 func (h *MessageHandler) FetchMessages(w http.ResponseWriter, r *http.Request) {
 	userIdStr := r.URL.Query().Get("user_id")
@@ -55,6 +69,16 @@ func (h *MessageHandler) FetchMessages(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 }
+
+// Serves a file associated with a specific message.
+// Params:
+// - w: http.ResponseWriter - The HTTP response writer.
+// - r: *http.Request - The HTTP request, containing query parameter "message_id".
+// Returns:
+// - HTTP 200 with the file if successful.
+// - HTTP 400 if message_id is missing or the message is not a file.
+// - HTTP 404 if the message or file does not exist.
+// - HTTP 500 if there is an internal server error.
 
 func (h *MessageHandler) ServeFile(w http.ResponseWriter, r *http.Request) {
 	// Get the message ID from the query parameter

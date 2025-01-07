@@ -1,3 +1,6 @@
+// Handles real-time actions request by consumer, related to contact-service only.
+// Author: Nadir Hussain
+
 package utils
 
 import (
@@ -14,6 +17,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
+// WebSocketHandler manages WebSocket connections and real-time notifications.
 type WebSocketHandler struct {
 	Connections map[string]*websocket.Conn
 	Mutex       sync.Mutex
@@ -22,6 +26,14 @@ type WebSocketHandler struct {
 	Upgrader    websocket.Upgrader
 }
 
+// NewWebSocketHandler initializes a WebSocketHandler instance.
+//
+// Parameters:
+// - repo: repository.ContactsRepository - The contacts repository for database operations.
+// - amqpChannel: *amqp.Channel - RabbitMQ channel for notifications.
+//
+// Returns:
+// - *WebSocketHandler: A new WebSocketHandler instance.
 func NewWebSocketHandler(repo repository.ContactsRepository, amqpChannel *amqp.Channel) *WebSocketHandler {
 	return &WebSocketHandler{
 		Connections: make(map[string]*websocket.Conn),
@@ -35,6 +47,14 @@ func NewWebSocketHandler(repo repository.ContactsRepository, amqpChannel *amqp.C
 	}
 }
 
+// HandleWebSocket handles incoming WebSocket connections and routes messages.
+//
+// Parameters:
+// - w: http.ResponseWriter - HTTP response writer.
+// - r: *http.Request - HTTP request.
+//
+// Returns:
+// - None.
 func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user_id")
 	if userID == "" {
@@ -91,6 +111,14 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// HandleSendContactRequest processes a new contact request.
+//
+// Parameters:
+// - senderID: string - The user ID of the sender.
+// - receiverID: string - The user ID of the receiver.
+//
+// Returns:
+// - None.
 func (h *WebSocketHandler) HandleSendContactRequest(senderID, receiverID string) {
 	// Save the contact request in the database
 
@@ -168,6 +196,14 @@ func (h *WebSocketHandler) HandleSendContactRequest(senderID, receiverID string)
 	}
 }
 
+// HandleRemoveContact removes a contact between two users.
+//
+// Parameters:
+// - senderID: string - The user ID of the sender initiating the removal.
+// - receiverID: string - The user ID of the contact being removed.
+//
+// Returns:
+// - None.
 func (h *WebSocketHandler) HandleRemoveContact(senderID, receiverID string) {
 	// Save the contact request in the database
 
@@ -234,6 +270,17 @@ func (h *WebSocketHandler) HandleRemoveContact(senderID, receiverID string) {
 		log.Printf("User %s is offline. Notification queued via AMQP.", receiverID)
 	}
 }
+
+// HandleAcceptRejectContactRequest processes the acceptance or rejection of a contact request.
+//
+// Parameters:
+// - requestID: string - The ID of the contact request.
+// - action: string - The action ("accept" or "reject").
+// - userID: string - The ID of the user performing the action.
+// - targetUserID: string - The ID of the user who sent the request.
+//
+// Returns:
+// - None.
 func (h *WebSocketHandler) HandleAcceptRejectContactRequest(requestID, action, userID, targetUserID string) {
 	// Fetch the request
 	log.Printf("Processing %s contact request: %s by %s for %s", action, requestID, userID, targetUserID)

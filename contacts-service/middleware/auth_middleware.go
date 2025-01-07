@@ -1,3 +1,6 @@
+// Middleware for handling JWT-based authentication and request authorization.
+// Author: Nadir Hussain
+
 package middleware
 
 import (
@@ -13,7 +16,7 @@ type AuthMiddleware struct {
 	AMQPConn *amqp.Connection // Use the RabbitMQ connection, not a shared channel
 }
 
-// RequireAuth is the middleware for authenticating requests
+// RequireAuth is the middleware for authenticating requests and protecting the pages/APIs
 func (a *AuthMiddleware) RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Create a new RabbitMQ channel for this request

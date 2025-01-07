@@ -13,15 +13,18 @@ import (
 	"github.com/streadway/amqp"
 )
 
+// The request sent to auth-service
 type DecodeJWTRequest struct {
 	SessionToken string `json:"session_token"`
 }
 
+// Each user detail contains this structured data
 type UserDetails struct {
 	Username string `json:"username"`
 	Email    string `json:"email"`
 }
 
+// The response of decoded JWt received in queue
 type DecodeJWTResponse struct {
 	Valid    bool   `json:"valid"`
 	UserID   string `json:"user_id"`
@@ -30,10 +33,12 @@ type DecodeJWTResponse struct {
 	Error    string `json:"error,omitempty"`
 }
 
+// Structure of request for users' details to be sent to auth-service via amqp using rabbitmq broker
 type BatchDetailsRequest struct {
 	UserIDs []string `json:"user_ids"`
 }
 
+// The response published to queue by auth-service with users' details
 type BatchDetailsResponse struct {
 	UserDetails map[string]*models.SenderDetails `json:"user_details"`
 }
