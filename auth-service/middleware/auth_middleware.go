@@ -1,3 +1,6 @@
+// Middleware for handling JWT-based authentication and request authorization.
+// Author: Nadir Hussain
+
 package middleware
 
 import (
@@ -10,6 +13,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// Represents the decoded response structure for JWT tokens.
 type JWTDecodeResponse struct {
 	UserID   string `json:"user_id,omitempty"`
 	Username string `json:"username,omitempty"`
@@ -18,6 +22,7 @@ type JWTDecodeResponse struct {
 	Error    string `json:"error,omitempty"`
 }
 
+// Decodes and validates JWT tokens using a secret key.
 type JWTDecoder struct {
 	Secret string
 }
@@ -54,13 +59,13 @@ func (jd *JWTDecoder) DecodeJWT(token string) JWTDecodeResponse {
 	}
 }
 
-// RequireAuth is the middleware for authenticating requests
+// RequireAuth is the middleware for authenticating requests and protecting API routes
 func RequireAuth(next http.Handler) http.Handler {
 
 	utils.LoadEnvs()
 	JWT_SECRET := os.Getenv("JWT_SECRET")
 	jwtDecoder := &JWTDecoder{
-		Secret: JWT_SECRET, // Replace with your actual secret key
+		Secret: JWT_SECRET,
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -88,9 +93,7 @@ func RequireAuth(next http.Handler) http.Handler {
 		ctx = context.WithValue(ctx, "username", response.Username)
 		ctx = context.WithValue(ctx, "email", response.Email)
 
+		// Proceed to the next handler if the token is present and data is decoded
 		next.ServeHTTP(w, r.WithContext(ctx))
-
-		// Proceed to the next handler if the token is present
-		// next.ServeHTTP(w, r)
 	})
 }

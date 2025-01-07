@@ -1,3 +1,6 @@
+// Handles session verification requests via RabbitMQ queues.
+// Author: Nadir Hussain
+
 package amqp
 
 import (
@@ -9,19 +12,25 @@ import (
 	"github.com/streadway/amqp"
 )
 
+// Handles session validation logic via RabbitMQ.
 type SessionVerifier struct {
 	SessionRepo repository.SessionRepository
 }
 
+// Represents the structure for session verification requests.
 type SessionVerificationRequest struct {
 	SessionID string `json:"session_id"`
 }
 
+// Represents the structure for session verification responses.
 type SessionVerificationResponse struct {
 	Valid  bool   `json:"valid"`
 	UserID string `json:"user_id,omitempty"`
 }
 
+// Listens to session verification requests and publishes responses.
+// Parameters:
+// - ch: RabbitMQ channel for consuming and publishing messages.
 func (sv *SessionVerifier) ListenForSessionVerification(ch *amqp.Channel) {
 	q, err := ch.QueueDeclare(
 		utils.AUTH_SESSION_VERIFICATION, // Name of the request queue
@@ -79,10 +88,10 @@ func (sv *SessionVerifier) ListenForSessionVerification(ch *amqp.Channel) {
 
 			// Publish response to the response queue
 			err = ch.Publish(
-				"",                      // Exchange
-				"auth-session-response", // Response queue name
-				false,                   // Mandatory
-				false,                   // Immediate
+				"",                          // Exchange
+				utils.AUTH_SESSION_RESPONSE, // Response queue name
+				false,                       // Mandatory
+				false,                       // Immediate
 				amqp.Publishing{ContentType: "application/json", Body: responseBytes},
 			)
 			if err != nil {
@@ -93,26 +102,15 @@ func (sv *SessionVerifier) ListenForSessionVerification(ch *amqp.Channel) {
 	log.Println("Listening for session verification requests...")
 }
 
+// Validates the session ID by checking its existence in the database.
+// Parameters:
+// - sessionID: The session ID to validate.
+// Returns:
+// - SessionVerificationResponse indicating whether the session is valid.
 func (sv *SessionVerifier) verifySession(sessionID string) SessionVerificationResponse {
 	session, err := sv.SessionRepo.GetSessionByID(sessionID)
 	if err != nil || session == nil {
 		return SessionVerificationResponse{Valid: false}
 	}
 	return SessionVerificationResponse{Valid: true, UserID: session.UserID.String()} // Convert UserID to string
-}
-
-// InitRabbitMQ sets up the RabbitMQ connection and channel
-func InitRabbitMQ(amqpURL string) (*amqp.Connection, *amqp.Channel) {
-	// Connect to RabbitMQ
-	conn, err := amqp.Dial(amqpURL)
-	if err != nil {
-		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
-	}
-
-	// Open a channel
-	ch, err := conn.Channel()
-	if err != nil {
-		log.Fatalf("Failed to open a channel: %v", err)
-	}
-	return conn, ch
 }

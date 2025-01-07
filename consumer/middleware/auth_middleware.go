@@ -1,3 +1,6 @@
+// Middleware for handling JWT-based authentication and request authorization.
+// Author: Nadir Hussain
+
 package middleware
 
 import (
@@ -10,17 +13,17 @@ import (
 )
 
 type AuthMiddleware struct {
-	AMQPConn *amqp.Connection // Use the RabbitMQ connection, not a shared channel
+	AMQPConn *amqp.Connection
 }
 
-// RequireAuth is the middleware for authenticating requests
+// RequireAuth is the middleware for authenticating requests and protecting the pages/APIs
 func (a *AuthMiddleware) RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Create a new RabbitMQ channel for this request
 		ch, err := a.AMQPConn.Channel()
 		if err != nil {
 			log.Printf("Failed to create RabbitMQ channel: %v", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			utils.RenderErrorPage(w, "Internal server error")
 			return
 		}
 		defer ch.Close()
@@ -29,7 +32,8 @@ func (a *AuthMiddleware) RequireAuth(next http.Handler) http.Handler {
 		cookie, err := r.Cookie("session_token")
 		if err != nil || cookie.Value == "" {
 			log.Printf("No session token provided")
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			utils.RenderErrorPage(w, "Unauthorized: No session token provided")
+
 			return
 		}
 
@@ -39,7 +43,7 @@ func (a *AuthMiddleware) RequireAuth(next http.Handler) http.Handler {
 
 		if err != nil || !response.Valid {
 			log.Printf("Invalid session: %s", err)
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			utils.RenderErrorPage(w, "Unauthorized: Invalid session token")
 			return
 		}
 		log.Print("Passing [user] context to route", response.UserID, response.Username, response.Email)

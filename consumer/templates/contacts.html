@@ -44,7 +44,7 @@
     </style>
   </head>
   <body>
-    <!-- Include Header -->
+    <!-- Including Header -->
     {{ template "contacts_header.html" .}}
 
     <div id="snackbar">Some text some message..</div>
@@ -71,9 +71,8 @@
     </div>
     <script src="/static/helpers.js"></script>
     <script>
-      // Pass contacts data to JavaScript
+
       const contacts = JSON.parse("{{ .ContactsJSON }}");
-      console.log("contacts", contacts);
       const userId = "{{ .UserID }}";
       const GATEWAY_WS_URL = "{{ .WebSocketURL }}";
       const ws = new WebSocket(`${GATEWAY_WS_URL}/contacts?user_id=${userId}`);
@@ -147,14 +146,13 @@
             console.log("Users", users);
             console.log("Contacts", contacts);
             users.forEach((user) => {
+              const isContact = contacts.some(
+                (c) => c.contactDetails.user_id === user.id
+              );
 
-                const isContact = contacts.some(
-        (c) => c.contactDetails.user_id === user.id
-      );
-
-      if (user.id === userId || isContact) {
-        return; // Skip this user
-      }
+              if (user.id === userId || isContact) {
+                return; // Skip this user
+              }
 
               const listItem = document.createElement("li");
               listItem.classList.add("list-item");

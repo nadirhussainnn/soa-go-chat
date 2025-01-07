@@ -1,3 +1,6 @@
+// Handlers for user authentication, registration, and user search functionalities.
+// Author: Nadir Hussain
+
 package handlers
 
 import (
@@ -15,12 +18,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// Handler is a struct to manage user and session repository.
 type Handler struct {
 	UserRepo    repository.UserRepository
 	SessionRepo repository.SessionRepository
 }
 
-// LoginHandler handles user login
+// Validates user credentials and establishes a session.
 func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	JWT_SECRET := []byte(os.Getenv("JWT_SECRET"))
 
@@ -34,18 +38,18 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch the user
+	// Fetch the user by their username
 	user, err := h.UserRepo.GetUserByUsername(credentials.Username)
 	if err != nil {
 		http.Error(w, `{"message": "Invalid username or user does not exist"}`, http.StatusUnauthorized)
-		w.Header().Set("Content-Type", "application/json") // Ensure the response is JSON
+		w.Header().Set("Content-Type", "application/json")
 		return
 
 	}
-	// Compare passwords
+	// Compare password sent by user, and one stored in database
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(credentials.Password)); err != nil {
 		http.Error(w, `{"message": "Invalid password"}`, http.StatusUnauthorized)
-		w.Header().Set("Content-Type", "application/json") // Ensure the response is JSON
+		w.Header().Set("Content-Type", "application/json")
 		return
 	}
 
@@ -60,7 +64,7 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	tokenString, err := token.SignedString(JWT_SECRET)
 	if err != nil {
 		http.Error(w, `{"message": "Failed to generate token"}`, http.StatusInternalServerError)
-		w.Header().Set("Content-Type", "application/json") // Ensure the response is JSON
+		w.Header().Set("Content-Type", "application/json")
 		return
 	}
 	// Create a session
@@ -71,7 +75,7 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.SessionRepo.CreateSession(session); err != nil {
 		http.Error(w, `{"message": "Failed to create session"}`, http.StatusInternalServerError)
-		w.Header().Set("Content-Type", "application/json") // Ensure the response is JSON
+		w.Header().Set("Content-Type", "application/json")
 		return
 	}
 	// Set the session cookie
@@ -94,6 +98,7 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Invalidates the user session and clears the cookie.
 func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
@@ -101,8 +106,6 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Print("Cookie: ", cookie.Value)
-	// Delete the session
 	if err := h.SessionRepo.DeleteSession(cookie.Value); err != nil {
 		http.Error(w, "Failed to delete session", http.StatusInternalServerError)
 		return
@@ -153,7 +156,7 @@ func (h *Handler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("User registered successfully"))
 }
 
-// ForgotPasswordHandler handles password reset requests
+// Handles password reset requests
 func (h *Handler) ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Username    string `json:"username"`
@@ -165,7 +168,7 @@ func (h *Handler) ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Fetch the user
+	// Fetch the user by their username
 	user, err := h.UserRepo.GetUserByUsername(request.Username)
 	if err != nil {
 		http.Error(w, "User with this username or does not exist", http.StatusConflict)
@@ -190,6 +193,7 @@ func (h *Handler) ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) 
 	w.Write([]byte("Password updated successfully"))
 }
 
+// SearchContacts searches and retrieves contacts based on the query string, excluding the user-itself who searches
 func (h *Handler) SearchContacts(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query().Get("q") // Get the search query from the request

@@ -1,3 +1,6 @@
+// Defining the database tables, and related structs to store, get user related data
+// Author: Nadir Hussain
+
 package models
 
 import (
@@ -17,7 +20,7 @@ type SenderDetails struct {
 	Email    string `json:"email"`
 }
 
-// BeforeCreate hook to generate UUID before saving
+// BeforeCreate hook generates UUID before saving a new user
 func (user *User) BeforeCreate(tx *gorm.DB) (err error) {
 	user.ID = uuid.New()
 	return

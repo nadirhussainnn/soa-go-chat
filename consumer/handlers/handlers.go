@@ -1,3 +1,6 @@
+// Provides handlers to consume auth-service, contacts-service and messaging-serive APIs and Queues
+// Author: Nadir Hussain
+
 package handlers
 
 import (
@@ -10,48 +13,30 @@ import (
 	"os"
 )
 
+// Defines the structure for user related data
 type User struct {
 	ID       string `json:"id"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
 }
 
-// Helper function to render the login template with an error message
-func renderLoginWithError(w http.ResponseWriter, errorMessage string) {
-	tmpl := template.Must(template.ParseGlob("templates/*.html"))
-	err := tmpl.ExecuteTemplate(w, "login.html", map[string]interface{}{
-		"ErrorMessage": errorMessage,
-	})
-	if err != nil {
-		log.Printf("[renderLoginWithError] Failed to render login template: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-	}
+// Defines the structure for message related data
+type Message struct {
+	ID           string `json:"id"`
+	SenderID     string `json:"sender_id"`
+	ReceiverID   string `json:"receiver_id"`
+	Content      string `json:"content"`
+	CreatedAt    string `json:"created_at"`
+	MessageType  string `json:"message_type"` // 'text', 'file'
+	FilePath     string `json:"file_path"`    // Path to the file on the server
+	FileName     string `json:"file_name"`    // Name of the file
+	FileMimeType string `json:"file_mime_type"`
 }
 
-// Helper function to render the login template with an error message
-func renderRegisterWithError(w http.ResponseWriter, errorMessage string) {
-	tmpl := template.Must(template.ParseGlob("templates/*.html"))
-	err := tmpl.ExecuteTemplate(w, "register.html", map[string]interface{}{
-		"ErrorMessage": errorMessage,
-	})
-	if err != nil {
-		log.Printf("[renderRegisterWithError] Failed to render register template: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-	}
-}
-
-// Helper function to render the login template with an error message
-func renderResetPassWithError(w http.ResponseWriter, errorMessage string) {
-	tmpl := template.Must(template.ParseGlob("templates/*.html"))
-	err := tmpl.ExecuteTemplate(w, "forgot_password.html", map[string]interface{}{
-		"ErrorMessage": errorMessage,
-	})
-	if err != nil {
-		log.Printf("[renderResetPasswordWithError] Failed to render reset_password template: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-	}
-}
-
+// Processes the login request from the user and fetches user contacts.
+// Params:
+//   - w: http.ResponseWriter to write the response.
+//   - r: *http.Request containing the request data.
 func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
@@ -64,7 +49,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	resp, err := http.Post(GATEWAY_URL+"/auth/login", "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		log.Printf("[HandleLogin] Error communicating with Authentication Service: %v", err)
-		renderLoginWithError(w, "Internal Server Error")
+		utils.RenderLoginWithError(w, "Internal Server Error")
 
 		return
 	}
@@ -82,9 +67,9 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 			Message string `json:"message"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil || errorResponse.Message == "" {
-			renderLoginWithError(w, "Invalid username or password")
+			utils.RenderLoginWithError(w, "Invalid username or password")
 		} else {
-			renderLoginWithError(w, errorResponse.Message)
+			utils.RenderLoginWithError(w, errorResponse.Message)
 		}
 		return
 	}
@@ -92,7 +77,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	err = json.NewDecoder(resp.Body).Decode(&user)
 	if err != nil {
 		log.Printf("[HandleLogin] Failed to decode auth-service response: %v", err)
-		renderLoginWithError(w, "Internal Server Error")
+		utils.RenderLoginWithError(w, "Internal Server Error")
 		return
 	}
 
@@ -106,7 +91,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	req, err := http.NewRequest("GET", GATEWAY_URL+"/contacts/?user_id="+user.UserID, nil)
 	if err != nil {
 		log.Printf("[HandleLogin] Failed to create request to contacts-service: %v", err)
-		renderLoginWithError(w, "Internal Server Error")
+		utils.RenderLoginWithError(w, "Internal Server Error")
 		return
 	}
 	req.AddCookie(&http.Cookie{
@@ -119,7 +104,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	contactsResp, err := client.Do(req)
 	if err != nil {
 		log.Printf("[HandleLogin] Failed to fetch contacts for user %s: %v", user.UserID, err)
-		renderLoginWithError(w, "Failed to fetch contacts")
+		utils.RenderLoginWithError(w, "Failed to fetch contacts")
 		return
 	}
 	defer contactsResp.Body.Close()
@@ -127,7 +112,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	log.Print("Contacts response", contactsResp.Body)
 	if contactsResp.StatusCode != http.StatusOK {
 		log.Printf("[HandleLogin] Error from contacts-service for user %s: %s", user.UserID, contactsResp.Status)
-		renderLoginWithError(w, "Failed to fetch contacts")
+		utils.RenderLoginWithError(w, "Failed to fetch contacts")
 		return
 	}
 
@@ -148,7 +133,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	err = json.NewDecoder(contactsResp.Body).Decode(&data)
 	if err != nil {
 		log.Printf("[HandleLogin] Failed to decode contacts response for user %s: %v", user.UserID, err)
-		renderLoginWithError(w, "Internal Server Error")
+		utils.RenderLoginWithError(w, "Internal Server Error")
 		return
 	}
 	// Pass contacts data to the template
@@ -164,11 +149,14 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Printf("[HandleLogin] Failed to render template for user %s: %v", user.UserID, err)
-		renderLoginWithError(w, "Internal Server Error")
+		utils.RenderLoginWithError(w, "Internal Server Error")
 	}
 }
 
-// HandleRegister processes registration requests
+// Processes the user registration request.
+// Params:
+//   - w: http.ResponseWriter to write the response.
+//   - r: *http.Request containing the request data.
 func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	email := r.FormValue("email")
@@ -177,7 +165,7 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 	// Performing validation on input data
 	if err := utils.ValidateRegistrationInput(username, email, password); err != nil {
-		renderRegisterWithError(w, err.Error())
+		utils.RenderRegisterWithError(w, err.Error())
 		return
 	}
 
@@ -188,19 +176,19 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	resp, err := http.Post(GATEWAY_URL+"/auth/register", "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		log.Printf("Error communicating with Authentication Service: %v", err)
-		renderRegisterWithError(w, "Internal Server Error")
+		utils.RenderRegisterWithError(w, "Internal Server Error")
 		return
 	}
 	defer resp.Body.Close()
 
 	// Check for specific error responses from the backend
 	if resp.StatusCode == http.StatusConflict {
-		renderRegisterWithError(w, "User with this username or email already exists")
+		utils.RenderRegisterWithError(w, "User with this username or email already exists")
 		return
 	}
 
 	if resp.StatusCode != http.StatusCreated {
-		renderRegisterWithError(w, "Registration failed. Please try again.")
+		utils.RenderRegisterWithError(w, "Registration failed. Please try again.")
 		return
 	}
 
@@ -208,7 +196,10 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// HandleLogin processes login requests
+// Processes user logout requests by invalidating the session.
+// Params:
+//   - w: http.ResponseWriter to send the response.
+//   - r: *http.Request containing the logout request.
 func HandleLogout(w http.ResponseWriter, r *http.Request) {
 	GATEWAY_URL := os.Getenv("GATEWAY_URL")
 
@@ -250,7 +241,10 @@ func HandleLogout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// HandleForgotPassword processes forgot password requests
+// Handles the password reset process for users
+// Params:
+//   - w: http.ResponseWriter to send the response.
+//   - r: *http.Request containing the request data.
 func HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	newPassword := r.FormValue("new_password")
@@ -258,7 +252,7 @@ func HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 
 	// Performing validation on input data
 	if err := utils.ValidatePassword(newPassword); err != nil {
-		renderResetPassWithError(w, err.Error())
+		utils.RenderResetPassWithError(w, err.Error())
 		return
 	}
 
@@ -269,25 +263,29 @@ func HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	resp, err := http.Post(GATEWAY_URL+"/auth/forgot-password", "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		log.Printf("Error communicating with Authentication Service: %v", err)
-		renderResetPassWithError(w, "Internal Server Error")
+		utils.RenderResetPassWithError(w, "Internal Server Error")
 		return
 	}
 	defer resp.Body.Close()
 
 	// Check for specific error responses from the backend
 	if resp.StatusCode == http.StatusConflict {
-		renderRegisterWithError(w, "User with this username or email does not exists")
+		utils.RenderRegisterWithError(w, "User with this username or email does not exists")
 		return
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		renderResetPassWithError(w, "Failed to reset password. Please try again.")
+		utils.RenderResetPassWithError(w, "Failed to reset password. Please try again.")
 		return
 	}
 
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
+// Fetches and displays a user's contacts
+// Params:
+//   - w: http.ResponseWriter to send the response.
+//   - r: *http.Request containing the request data.
 func HandleContacts(w http.ResponseWriter, r *http.Request) {
 	GATEWAY_URL := os.Getenv("GATEWAY_URL")
 	log.Print("Gateway URL", GATEWAY_URL)
@@ -392,6 +390,11 @@ func HandleContacts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 }
+
+// Fetches and displays a user's contact requests
+// Params:
+//   - w: http.ResponseWriter to send the response.
+//   - r: *http.Request containing the request data.
 func HandleRequests(w http.ResponseWriter, r *http.Request) {
 	GATEWAY_URL := os.Getenv("GATEWAY_URL")
 	userID, ok := r.Context().Value("user_id").(string)
@@ -480,6 +483,10 @@ func HandleRequests(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Renders the dashboard page with user and contact details
+// Params:
+//   - w: http.ResponseWriter to send the response.
+//   - r: *http.Request containing the request data.
 func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	GATEWAY_URL := os.Getenv("GATEWAY_URL")
 
@@ -573,6 +580,10 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Fetches and returns search results for users
+// Params:
+//   - w: http.ResponseWriter to send the response.
+//   - r: *http.Request containing the request data.
 func HandleSearch(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	if query == "" {
@@ -634,19 +645,10 @@ func HandleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type Message struct {
-	ID           string `json:"id"`
-	SenderID     string `json:"sender_id"`
-	ReceiverID   string `json:"receiver_id"`
-	Content      string `json:"content"`
-	CreatedAt    string `json:"created_at"`
-	MessageType  string `json:"message_type"` // 'text', 'file'
-	FilePath     string `json:"file_path"`    // Path to the file on the server
-	FileName     string `json:"file_name"`    // Name of the file
-	FileMimeType string `json:"file_mime_type"`
-}
-
 // HandleMessages fetches messages between the logged-in user and a selected contact
+// Params:
+//   - w: http.ResponseWriter to send the response.
+//   - r: *http.Request containing the request data.
 func HandleMessages(w http.ResponseWriter, r *http.Request) {
 	GATEWAY_URL := os.Getenv("GATEWAY_URL")
 	userID := r.URL.Query().Get("user_id")
