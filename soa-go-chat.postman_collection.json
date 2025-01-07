@@ -1,0 +1,367 @@
+{
+	"info": {
+		"_postman_id": "45d9c555-06c5-4aa8-bd40-5d8164be6a4b",
+		"name": "soa-chat",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "15856139"
+	},
+	"item": [
+		{
+			"name": "auth",
+			"item": [
+				{
+					"name": "login",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\":\"nadir\",\n    \"password\":\"%&Hello1%&\"\n}"
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8080/auth/login",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8080",
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "logout",
+					"request": {
+						"auth": {
+							"type": "apikey",
+							"apikey": [
+								{
+									"key": "value",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im5hZGlyQGdtYWlsLmNvbSIsInVzZXJuYW1lIjoibmFkaXIifQ.NJi-iDDNZpUmeRspofzIE1SVYkY_7oSJZK9W_WrQD-E",
+									"type": "string"
+								},
+								{
+									"key": "key",
+									"value": "session_token",
+									"type": "string"
+								},
+								{
+									"key": "in",
+									"value": "header",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8080/auth/logout",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8080",
+							"path": [
+								"auth",
+								"logout"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "search",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer 6c8c3b58-d49b-41cc-82b5-56fa14cbffbd",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://127.0.0.1:8080/auth/search?q=n",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8080",
+							"path": [
+								"auth",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "n"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "register",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\":\"john\",\n    \"email\":\"john@gmail.com\",\n    \"password\":\"john\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8080/auth/register",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8080",
+							"path": [
+								"auth",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "forgot-password",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\":\"nadir\",\n    \"new_password\":\"%&Hello1%&\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8080/auth/forgot-password",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8080",
+							"path": [
+								"auth",
+								"forgot-password"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "contacts",
+			"item": [
+				{
+					"name": "get-contacts",
+					"protocolProfileBehavior": {
+						"disableCookies": false
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImpvaG5AZ21haWwuY29tIiwiaWQiOiIxZjA0NWFkNC1kMWQxLTQ1YjgtYmUxMy05MzZkM2U4NmY4M2MiLCJzZXNzaW9uX2lkIjoiMjZlOGYwZDItMGRlOC00MDI5LTljM2QtNjkwYTFmNjgyZWNhIiwidXNlcm5hbWUiOiJqb2huIn0.BvfmbY6_Lnx-6qCo_gOWMcwYpjTvWpMB9iOJ4FbfIrc",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://127.0.0.1:8083/?user_id=1f045ad4-d1d1-45b8-be13-936d3e86f83c",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8083",
+							"path": [
+								""
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "1f045ad4-d1d1-45b8-be13-936d3e86f83c"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get-requests",
+					"protocolProfileBehavior": {
+						"disableCookies": false
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImpvaG5AZ21haWwuY29tIiwiaWQiOiIxZjA0NWFkNC1kMWQxLTQ1YjgtYmUxMy05MzZkM2U4NmY4M2MiLCJzZXNzaW9uX2lkIjoiOGJiYjdhNzgtNGNjYS00ZDUyLWJhNTItMTI0NDllZTc3N2YwIiwidXNlcm5hbWUiOiJqb2huIn0.yLKMJEbYgSAmYgKbWFlwllOKWJD5xjY5cKwqKP4LC2E",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://127.0.0.1:8083/requests/?user_id=026ab93b-4f6e-4383-b774-8a5cebd86e23",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8083",
+							"path": [
+								"requests",
+								""
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "026ab93b-4f6e-4383-b774-8a5cebd86e23"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "messaging",
+			"item": [
+				{
+					"name": "get-messages",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImpvaG5AZ21haWwuY29tIiwiaWQiOiIxZjA0NWFkNC1kMWQxLTQ1YjgtYmUxMy05MzZkM2U4NmY4M2MiLCJzZXNzaW9uX2lkIjoiODA5ZTFlNTMtNmFkYS00NTYxLThiYWItNjljZDI3YzRjN2ZhIiwidXNlcm5hbWUiOiJqb2huIn0.XAnf4kWK_vTHsknnoceJGNZSC5GglrDxdp17Tt5jjj8",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8082/?user_id=1f045ad4-d1d1-45b8-be13-936d3e86f83c&contact_id=43d39c79-ed9b-4a79-be04-19bdbef93699",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8082",
+							"path": [
+								""
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "1f045ad4-d1d1-45b8-be13-936d3e86f83c"
+								},
+								{
+									"key": "contact_id",
+									"value": "43d39c79-ed9b-4a79-be04-19bdbef93699"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get-file",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im5hZGlyQGdtYWlsLmNvbSIsImlkIjoiNDNkMzljNzktZWQ5Yi00YTc5LWJlMDQtMTliZGJlZjkzNjk5Iiwic2Vzc2lvbl9pZCI6Ijg5NDYzZTE5LTRmYTgtNDM1MC1hYWRmLTQ4ZjlkOGM4Mjk4MyIsInVzZXJuYW1lIjoibmFkaXIifQ.YHQZ9kCoRoft7eSReyEMRFuPFQx78TEcU8_9PMiFQRc",
+								"type": "text"
+							},
+							{
+								"key": "",
+								"value": "",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"url": {
+							"raw": "http://127.0.0.1:8080/messages/file/?message_id=c2ef41ab-565d-4b48-bdbc-068bb9a420c6",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8080",
+							"path": [
+								"messages",
+								"file",
+								""
+							],
+							"query": [
+								{
+									"key": "message_id",
+									"value": "c2ef41ab-565d-4b48-bdbc-068bb9a420c6"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
