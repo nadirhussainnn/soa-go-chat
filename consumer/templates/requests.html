@@ -50,7 +50,7 @@
     </style>
 </head>
 <body>
-    <!-- Include Header -->
+    <!-- Including Header -->
     {{ template "requests_header.html" . }}
 
     <div id="snackbar">Some text some message..</div>
@@ -86,7 +86,6 @@
         
         const userId = "{{ .UserID }}";
         const GATEWAY_WS_URL = "{{ .WebSocketURL }}"
-        console.log("GATEWAY_WS_URL", GATEWAY_WS_URL)
 
         const ws = new WebSocket(`${GATEWAY_WS_URL}/contacts?user_id=${userId}`);
     

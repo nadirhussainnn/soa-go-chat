@@ -1,3 +1,6 @@
+// contants defined here that are used within auth-service app. Related to RabbitMQ queues specifically
+// Author: Nadir Hussain
+
 package utils
 
 var AUTH_SESSION_VERIFICATION = "auth-session-verification"

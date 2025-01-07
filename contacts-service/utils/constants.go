@@ -1,3 +1,6 @@
+// contants defined here that are used within contacts-service app. Related to RabbitMQ queues specifically
+// Author: Nadir Hussain
+
 package utils
 
 // Queues

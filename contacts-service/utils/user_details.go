@@ -1,3 +1,6 @@
+// Handles sending AMQP request via RabbitMQ to auth-service to get user details from JWT
+// Author: Nadir Hussain
+
 package utils
 
 import (
@@ -35,7 +38,14 @@ type BatchDetailsResponse struct {
 	UserDetails map[string]*models.SenderDetails `json:"user_details"`
 }
 
-// DecodeJWT sends the JWT to the auth-service via AMQP and retrieves user details
+// Sends the JWT to the auth-service via AMQP and retrieves user details.
+// Params:
+//   - amqpChannel: Pointer to the AMQP channel used for communication.
+//   - sessionToken: The JWT session token to decode.
+//
+// Returns:
+//   - *DecodeJWTResponse: Decoded JWT response containing user details.
+//   - error: Any error encountered during the process.
 func DecodeJWT(amqpChannel *amqp.Channel, sessionToken string) (*DecodeJWTResponse, error) {
 	if sessionToken == "" {
 		return nil, errors.New("session token is empty")

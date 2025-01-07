@@ -51,7 +51,7 @@
     </style>
   </head>
   <body>
-    <!-- Include Header -->
+    <!-- Including Header -->
     {{ template "dashboard_header.html" .}}
 
     <div id="snackbar">Some text some message..</div>
@@ -110,8 +110,6 @@
 
       const GATEWAY_WS_URL = "{{ .WebSocketURL }}";
       const GATEWAY_HTTP_URL = "{{ .GatewayHttpURL }}";
-      console.log("GATEWAY_WS_URL", GATEWAY_WS_URL);
-      console.log("GATEWAY_HTTP", GATEWAY_HTTP_URL);
 
       // Global WebSocket connection
       const ws = new WebSocket(`${GATEWAY_WS_URL}/messages?user_id=${userId}`);
@@ -263,7 +261,7 @@
           isSender ? "sent" : "received"
         );
 
-        // Format the time
+        // Format the time as 2:00 PM instead of 14:00
         const options = {
           hour: "numeric",
           minute: "numeric",
@@ -291,14 +289,13 @@
 
       function downloadFile(url, fileName) {
         // Get cookies from the browser
-        const cookies = document.cookie; // Example: "session_token=your_token_value"
-        console.log("COOKIE", cookies);
+        const cookies = document.cookie; 
         fetch(url, {
           method: "GET",
           headers: {
-            Cookie: cookies, // Attach cookies manually
+            Cookie: cookies, 
           },
-          credentials: "include", // Also ensure cookies are included automatically
+          credentials: "include", // Also ensures cookies are included automatically
         })
           .then((response) => {
             if (!response.ok) {
@@ -361,7 +358,7 @@
             // Create the file bubble
             const fileBubble = document.createElement("div");
             fileBubble.classList.add("message-bubble", "sent");
-            fileBubble.setAttribute("data-file-id", file.name); // Add data-file-id for easier tracking
+            fileBubble.setAttribute("data-file-id", file.name); 
             fileBubble.innerHTML = `
         <p>📎 ${file.name} <span class="upload-status">(Uploading...)</span></p>
         <div class="progress-bar">

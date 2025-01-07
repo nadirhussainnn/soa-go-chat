@@ -1,3 +1,6 @@
+// Load envs anywhere within app to access them. Loaded once in main.go
+// Author: Nadir Hussain
+
 package utils
 
 import (
@@ -6,6 +9,12 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Loads envs from .env file
+// Params:
+//   - None
+//
+// Returns:
+//   - Nonee
 func LoadEnvs() {
 	err := godotenv.Load()
 	if err != nil {

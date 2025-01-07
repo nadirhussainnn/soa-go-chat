@@ -1,3 +1,6 @@
+// contants defined here that are used within consumer app. Related to RabbitMQ queues specifically
+// Author: Nadir Hussain
+
 package utils
 
 var MESSAGES = "messages"
