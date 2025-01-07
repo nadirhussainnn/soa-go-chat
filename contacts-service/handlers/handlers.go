@@ -1,3 +1,6 @@
+// Provides API handlers to manage contacts and requests. Communicates with auth-service via AMQP to get 'users' details
+// Author: Nadir Hussain
+
 package handlers
 
 import (
@@ -11,12 +14,20 @@ import (
 	"github.com/streadway/amqp"
 )
 
+// handles HTTP requests related to contact management.
 type ContactsHandler struct {
 	Repo             repository.ContactsRepository
 	WebSocketHandler *utils.WebSocketHandler
 	AMQPConn         *amqp.Connection // Store RabbitMQ connection
 }
 
+// Fetches the list of contacts for the specified user.
+// Params:
+//   - w (http.ResponseWriter): Response writer to send the response.
+//   - r (*http.Request): HTTP request containing user_id in the query.
+//
+// Returns:
+//   - JSON response containing the list of contacts.
 func (h *ContactsHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("user_id")
 	log.Print("Query: ", query)
@@ -90,6 +101,13 @@ func (h *ContactsHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 }
+
+// Fetches pending contact requests for the specified user.
+// Params:
+//   - w (http.ResponseWriter): Response writer to send the response.
+//   - r (*http.Request): HTTP request containing user_id in the query.
+// Returns:
+//   - JSON response containing the pending contact requests.
 
 func (h *ContactsHandler) FetchPendingRequests(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("user_id")

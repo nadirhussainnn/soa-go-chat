@@ -15,21 +15,12 @@ type DecodeJWTRequest struct {
 	SessionToken string `json:"session_token"`
 }
 
-type UserDetails struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-}
-
 type DecodeJWTResponse struct {
 	Valid    bool   `json:"valid"`
 	UserID   string `json:"user_id"`
 	Email    string `json:"email"`
 	Username string `json:"username"`
 	Error    string `json:"error,omitempty"`
-}
-
-type BatchDetailsRequest struct {
-	UserIDs []string `json:"user_ids"`
 }
 
 // Sends the JWT to the auth-service via AMQP and retrieves user details.

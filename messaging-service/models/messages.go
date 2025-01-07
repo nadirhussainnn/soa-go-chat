@@ -1,3 +1,6 @@
+// Defining the database tables for message
+// Author: Nadir Hussain
+
 package models
 
 import (
@@ -6,6 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// Contact represents a user's message sent to other. Can be file, text
 type Message struct {
 	ID           uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
 	SenderID     uuid.UUID `gorm:"type:uuid;not null" json:"sender_id"`

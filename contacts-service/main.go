@@ -1,3 +1,6 @@
+// Entry point for the contacts Service application. Initializes the database, RabbitMQ, HTTP and WebSockets
+// Author: Nadir Hussain
+
 package main
 
 import (
@@ -15,45 +18,58 @@ import (
 	"gorm.io/gorm"
 )
 
+// Initializes the database connection and applies migrations.
+// Returns:
+//   - *gorm.DB: Database instance for further operations.
+
 func initDB() *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(os.Getenv("DB_NAME")), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
 	}
 
-	// Migrate the schema
+	// Apply schema migrations for contacts and ContactRequests models.
 	db.AutoMigrate(&models.Contact{}, &models.ContactRequest{})
 	return db
 }
 
 func main() {
-	// Load environment variables
+
+	// Loading environment variables from the .env file.
 	utils.LoadEnvs()
+
+	// Setting configuration variables.
 	PORT := os.Getenv("PORT")
 	AMQP_URL := os.Getenv("AMQP_URL")
 
+	// Initializing database and repositories.
 	db := initDB()
 	repo := repository.NewContactsRepository(db)
 
-	// Set up RabbitMQ
-	conn, ch := amqp.InitRabbitMQ(AMQP_URL) // Connection setup
+	// Initializing RabbitMQ connection and channel.
+	conn, ch := amqp.InitRabbitMQ(AMQP_URL)
 	defer conn.Close()
+	defer ch.Close()
 
 	// Initialize WebSocket handler
-	webSocketHandler := utils.NewWebSocketHandler(repo, ch) // Pass nil as channel is now dynamic
+	webSocketHandler := utils.NewWebSocketHandler(repo, ch)
 
+	// Initializing handler with repo, websocket and amqp conn
 	handler := &handlers.ContactsHandler{
 		Repo:             repo,
 		WebSocketHandler: webSocketHandler,
 		AMQPConn:         conn, // Pass the RabbitMQ connection
 	}
 
+	// Initializing middleware
 	authMiddleware := &middleware.AuthMiddleware{
 		AMQPConn: conn,
 	}
 
+	// Listen for web socket connections - handle all web socket envts in HandleWebSocket
 	http.HandleFunc("/ws", webSocketHandler.HandleWebSocket)
 
+	// Handle REST APIs
 	http.Handle("/", authMiddleware.RequireAuth(http.HandlerFunc(handler.GetContacts)))
 	http.Handle("/requests/", authMiddleware.RequireAuth(http.HandlerFunc(handler.FetchPendingRequests)))
 
