@@ -112,7 +112,8 @@
       const GATEWAY_HTTP_URL = "{{ .GatewayHttpURL }}";
 
       // Global WebSocket connection
-      const ws = new WebSocket(`${GATEWAY_WS_URL}/messages?user_id=${userId}`);
+      // const ws = new WebSocket(`${GATEWAY_WS_URL}/messages?user_id=${userId}`);
+      const ws = new WebSocket(`ws://${window.location.host}/ws/messages?user_id=${userId}`);
 
       document.getElementById("search").addEventListener("keyup", function () {
         const query = this.value.toLowerCase().trim();

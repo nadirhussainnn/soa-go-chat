@@ -12,6 +12,7 @@ import (
 func WebSocketProxyHandler(serviceURLs map[string]string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Identify the target service based on the WebSocket path
+		log.Print("Comes here")
 		servicePath := mux.Vars(r)["path"]
 		targetBaseURL, ok := serviceURLs[servicePath]
 		if !ok {

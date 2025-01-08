@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"consumer/utils"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -139,11 +140,13 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	// Pass contacts data to the template
 	tmpl := template.Must(template.ParseGlob("templates/*.html"))
 	err = tmpl.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
-		"Contacts":       data.Contacts,
-		"UserID":         user.UserID,
-		"Username":       user.UserName,
-		"Email":          user.Email,
-		"WebSocketURL":   os.Getenv("GATEWAY_WS_URL"),
+		"Contacts":     data.Contacts,
+		"UserID":       user.UserID,
+		"Username":     user.UserName,
+		"Email":        user.Email,
+		"WebSocketURL": fmt.Sprintf("ws://%s", r.Host), // Use the host from the request
+
+		// "WebSocketURL":   os.Getenv("GATEWAY_WS_URL"),
 		"GatewayHttpURL": os.Getenv("GATEWAY_URL"),
 	})
 
@@ -382,7 +385,9 @@ func HandleContacts(w http.ResponseWriter, r *http.Request) {
 		"UserID":       userID,
 		"Username":     username,
 		"Email":        email,
-		"WebSocketURL": os.Getenv("GATEWAY_WS_URL"),
+		"WebSocketURL": fmt.Sprintf("ws://%s", r.Host), // Use the host from the request
+
+		// "WebSocketURL": os.Getenv("GATEWAY_WS_URL"),
 	})
 
 	if err != nil {
@@ -475,7 +480,9 @@ func HandleRequests(w http.ResponseWriter, r *http.Request) {
 		"UserID":       userID,
 		"Username":     username,
 		"Email":        email,
-		"WebSocketURL": os.Getenv("GATEWAY_WS_URL"),
+		"WebSocketURL": fmt.Sprintf("ws://%s", r.Host), // Use the host from the request
+
+		// "WebSocketURL": os.Getenv("GATEWAY_WS_URL"),
 	})
 	if err != nil {
 		log.Printf("[HandleRequests] Failed to render template for user %s: %v", userID, err)
@@ -566,11 +573,13 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	// Pass contacts data to the template
 	tmpl := template.Must(template.ParseGlob("templates/*.html"))
 	err = tmpl.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
-		"Contacts":       data.Contacts,
-		"UserID":         userID,
-		"Username":       username,
-		"Email":          email,
-		"WebSocketURL":   os.Getenv("GATEWAY_WS_URL"),
+		"Contacts":     data.Contacts,
+		"UserID":       userID,
+		"Username":     username,
+		"Email":        email,
+		"WebSocketURL": fmt.Sprintf("ws://%s", r.Host), // Use the host from the request
+
+		// "WebSocketURL":   os.Getenv("GATEWAY_WS_URL"),
 		"GatewayHttpURL": os.Getenv("GATEWAY_URL"),
 	})
 

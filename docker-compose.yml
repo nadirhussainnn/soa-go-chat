@@ -1,0 +1,97 @@
+networks:
+  soa-go-chat-network:
+    driver: bridge
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - soa-go-chat-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build:
+      context: ./auth-service
+    container_name: auth-service
+    ports:
+      - "8081:8081"
+    env_file:
+      - ./auth-service/.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - soa-go-chat-network
+
+  contacts-service:
+    build:
+      context: ./contacts-service
+    container_name: contacts-service
+    ports:
+      - "8083:8083"
+    env_file:
+      - ./contacts-service/.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - soa-go-chat-network
+
+  messaging-service:
+    build:
+      context: ./messaging-service
+    container_name: messaging-service
+    ports:
+      - "8082:8082"
+    env_file:
+      - ./messaging-service/.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - soa-go-chat-network
+    
+
+  gateway:
+    build:
+      context: ./gateway
+    container_name: gateway
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./gateway/.env
+    depends_on:
+      auth-service:
+        condition: service_started
+      contacts-service:
+        condition: service_started
+      messaging-service:
+        condition: service_started
+    networks:
+      - soa-go-chat-network
+
+  consumer:
+    build:
+      context: ./consumer
+    container_name: consumer
+    ports:
+      - "8085:8085"
+    env_file:
+      - ./consumer/.env
+    depends_on:
+      gateway:
+        condition: service_started
+    networks:
+      - soa-go-chat-network
+
