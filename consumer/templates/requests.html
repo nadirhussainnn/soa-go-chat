@@ -100,9 +100,12 @@
       const ws = new WebSocket(
         `${protocol}://${window.location.host}/ws/contacts?user_id=${userId}`
       );
+      const ws2 = new WebSocket(
+        `${protocol}://${window.location.host}/ws/messages?user_id=${userId}`
+      );
 
       ws.onopen = () => {
-        console.log("WebSocket connection established.");
+        console.log("WebSocket connection established with contacts app.");
       };
 
       ws.onmessage = (event) => {
@@ -141,6 +144,29 @@
       };
 
       ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+      };
+
+      ws2.onopen = () => {
+        console.log("WebSocket connection established with messaging app.");
+      };
+
+      ws2.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === SOCKET_EVENTS.NEW_MESSAGE_RECEIVED) {
+          showSnackbar("New message received in chats");
+        }
+        if (data.type === SOCKET_EVENTS.NEW_FILE_RECEIVED) {
+          showSnackbar("A file received in chats");
+        }
+      };
+
+      ws2.onclose = () => {
+        console.log("WebSocket connection closed with messaging app.");
+      };
+
+      ws2.onerror = (error) => {
         console.error("WebSocket error:", error);
       };
 
