@@ -117,6 +117,9 @@
       const ws = new WebSocket(
         `${protocol}://${window.location.host}/ws/messages?user_id=${userId}`
       );
+      const ws2 = new WebSocket(
+        `${protocol}://${window.location.host}/ws/contacts?user_id=${userId}`
+      );
 
       document.getElementById("search").addEventListener("keyup", function () {
         const query = this.value.toLowerCase().trim();
@@ -468,6 +471,19 @@
             appendMessageBubble(data.message);
           }
         }
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+      };
+
+      ws.onclose = () => {
+        console.log("WebSocket connection closed.");
+      };
+
+      // Contacts WebSocket Event Listeners
+      ws2.onmessage = (event) => {
+        const data = JSON.parse(event.data);
 
         // Contact related events
         if (data.type === SOCKET_EVENTS.NEW_CONTACT_REQUEST_RECEIVED) {
@@ -488,11 +504,11 @@
         }
       };
 
-      ws.onerror = (error) => {
+      ws2.onerror = (error) => {
         console.error("WebSocket error:", error);
       };
 
-      ws.onclose = () => {
+      ws2.onclose = () => {
         console.log("WebSocket connection closed.");
       };
 
