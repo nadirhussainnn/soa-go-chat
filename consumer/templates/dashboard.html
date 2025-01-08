@@ -113,7 +113,10 @@
 
       // Global WebSocket connection
       // const ws = new WebSocket(`${GATEWAY_WS_URL}/messages?user_id=${userId}`);
-      const ws = new WebSocket(`ws://${window.location.host}/ws/messages?user_id=${userId}`);
+      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+      const ws = new WebSocket(
+        `${protocol}://${window.location.host}/ws/messages?user_id=${userId}`
+      );
 
       document.getElementById("search").addEventListener("keyup", function () {
         const query = this.value.toLowerCase().trim();
@@ -290,11 +293,11 @@
 
       function downloadFile(url, fileName) {
         // Get cookies from the browser
-        const cookies = document.cookie; 
+        const cookies = document.cookie;
         fetch(url, {
           method: "GET",
           headers: {
-            Cookie: cookies, 
+            Cookie: cookies,
           },
           credentials: "include", // Also ensures cookies are included automatically
         })
@@ -359,7 +362,7 @@
             // Create the file bubble
             const fileBubble = document.createElement("div");
             fileBubble.classList.add("message-bubble", "sent");
-            fileBubble.setAttribute("data-file-id", file.name); 
+            fileBubble.setAttribute("data-file-id", file.name);
             fileBubble.innerHTML = `
         <p>📎 ${file.name} <span class="upload-status">(Uploading...)</span></p>
         <div class="progress-bar">
@@ -464,6 +467,24 @@
           ) {
             appendMessageBubble(data.message);
           }
+        }
+
+        // Contact related events
+        if (data.type === SOCKET_EVENTS.NEW_CONTACT_REQUEST_RECEIVED) {
+          showSnackbar("Request received for connection");
+        }
+        if (data.type === SOCKET_EVENTS.CONTACT_REQUEST_SENT_ACK) {
+          showSnackbar("Contact request sent Successfully!");
+        }
+
+        if (data.type === SOCKET_EVENTS.CONTACT_REMOVED_ACK) {
+          showSnackbar("Contact was removed Successfully!");
+        }
+        if (data.type === SOCKET_EVENTS.CONTACT_REMOVED) {
+          showSnackbar("You were removed by someone!");
+        }
+        if (data.type === SOCKET_EVENTS.UPDATE_RECEIVED_ON_CONTACT_REQUEST) {
+          showSnackbar("Your request was accepted");
         }
       };
 
