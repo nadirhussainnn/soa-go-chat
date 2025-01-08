@@ -18,6 +18,23 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// Forward websocket request to gateway
+func proxyWebSocket(dst, src *websocket.Conn, errChan chan error) {
+	for {
+		messageType, message, err := src.ReadMessage()
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		err = dst.WriteMessage(messageType, message)
+		if err != nil {
+			errChan <- err
+			return
+		}
+	}
+}
+
 func main() {
 
 	// Loading environment variables from the .env file.
@@ -26,6 +43,7 @@ func main() {
 	// Setting configuration variables.
 	PORT := os.Getenv("PORT")
 	AMQP_URL := os.Getenv("AMQP_URL")
+	GATEWAY_WS_URL := os.Getenv("GATEWAY_WS_URL")
 
 	// Initializing RabbitMQ connection and channel.
 	conn, _ := amqp.InitRabbitMQ(AMQP_URL) // Connection setup
@@ -89,7 +107,7 @@ func main() {
 
 	http.HandleFunc("/ws/", func(w http.ResponseWriter, r *http.Request) {
 		// Build target URL to gateway
-		targetURL := "ws://gateway:8080" + r.URL.Path
+		targetURL := GATEWAY_WS_URL + r.URL.Path
 		if r.URL.RawQuery != "" {
 			targetURL += "?" + r.URL.RawQuery
 		}
@@ -132,19 +150,4 @@ func main() {
 	// Start the HTTP server
 	log.Println("Consumer service running on port", PORT)
 	log.Fatal(http.ListenAndServe(":"+PORT, nil))
-}
-func proxyWebSocket(dst, src *websocket.Conn, errChan chan error) {
-	for {
-		messageType, message, err := src.ReadMessage()
-		if err != nil {
-			errChan <- err
-			return
-		}
-
-		err = dst.WriteMessage(messageType, message)
-		if err != nil {
-			errChan <- err
-			return
-		}
-	}
 }

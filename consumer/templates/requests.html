@@ -86,7 +86,6 @@
         
         const userId = "{{ .UserID }}";
         const GATEWAY_WS_URL = "{{ .WebSocketURL }}"
-        console.log("GATEWAY_WUISUIO", GATEWAY_WS_URL)
         const ws = new WebSocket(`ws://${window.location.host}/ws/contacts?user_id=${userId}`);
 
         ws.onopen = () => {
