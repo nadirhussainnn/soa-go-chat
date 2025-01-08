@@ -27,6 +27,7 @@ func main() {
 	MESSAGING_SERVICE_WS_URL := os.Getenv("MESSAGING_SERVICE_WS_URL")
 
 	r := mux.NewRouter()
+
 	r.HandleFunc("/auth/{path:.*}", utils.HttpProxyHandler(AUTH_SERVICE_URL, "/auth")).Methods("POST", "GET")
 	r.HandleFunc("/contacts/{path:.*}", utils.HttpProxyHandler(CONTACTS_SERVICE_URL, "/contacts")).Methods("POST", "GET", "DELETE")
 	r.HandleFunc("/messages/{path:.*}", utils.HttpProxyHandler(MESSAGING_SERVICE_URL, "/messages")).Methods("POST", "GET")
