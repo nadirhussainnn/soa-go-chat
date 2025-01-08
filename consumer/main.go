@@ -43,7 +43,6 @@ func main() {
 	// Setting configuration variables.
 	PORT := os.Getenv("PORT")
 	AMQP_URL := os.Getenv("AMQP_URL")
-	GATEWAY_WS_URL := os.Getenv("GATEWAY_WS_URL")
 
 	// Initializing RabbitMQ connection and channel.
 	conn, _ := amqp.InitRabbitMQ(AMQP_URL) // Connection setup
@@ -105,49 +104,6 @@ func main() {
 	http.Handle("/search", authMiddleware.RequireAuth(http.HandlerFunc(handlers.HandleSearch)))
 	http.Handle("/messages", authMiddleware.RequireAuth(http.HandlerFunc(handlers.HandleMessages)))
 
-	http.HandleFunc("/ws/", func(w http.ResponseWriter, r *http.Request) {
-		// Build target URL to gateway
-		targetURL := GATEWAY_WS_URL + r.URL.Path
-		if r.URL.RawQuery != "" {
-			targetURL += "?" + r.URL.RawQuery
-		}
-
-		log.Printf("Proxying WebSocket to: %s", targetURL)
-
-		// Create upgrader
-		upgrader := websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool {
-				return true
-			},
-		}
-
-		// Upgrade the client connection
-		clientConn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Printf("Failed to upgrade client connection: %v", err)
-			return
-		}
-		defer clientConn.Close()
-
-		// Connect to gateway
-		gatewayConn, _, err := websocket.DefaultDialer.Dial(targetURL, nil)
-		if err != nil {
-			log.Printf("Failed to connect to gateway: %v", err)
-			clientConn.Close()
-			return
-		}
-		defer gatewayConn.Close()
-
-		// Handle bidirectional communication
-		errChan := make(chan error, 2)
-
-		go proxyWebSocket(clientConn, gatewayConn, errChan)
-		go proxyWebSocket(gatewayConn, clientConn, errChan)
-
-		// Wait for an error
-		<-errChan
-	})
-	// Start the HTTP server
 	log.Println("Consumer service running on port", PORT)
 	log.Fatal(http.ListenAndServe(":"+PORT, nil))
 }

@@ -96,13 +96,11 @@
     <script>
       const userId = "{{ .UserID }}";
       const GATEWAY_WS_URL = "{{ .WebSocketURL }}";
-      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-      const ws = new WebSocket(
-        `${protocol}://${window.location.host}/ws/contacts?user_id=${userId}`
-      );
-      const ws2 = new WebSocket(
-        `${protocol}://${window.location.host}/ws/messages?user_id=${userId}`
-      );
+
+      const ws = new WebSocket(`${GATEWAY_WS_URL}/contacts?user_id=${userId}`);
+      const ws2 = new WebSocket(`${GATEWAY_WS_URL}/messages?user_id=${userId}`);
+      
+
 
       ws.onopen = () => {
         console.log("WebSocket connection established with contacts app.");
