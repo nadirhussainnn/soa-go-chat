@@ -140,14 +140,14 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	// Pass contacts data to the template
 	tmpl := template.Must(template.ParseGlob("templates/*.html"))
 	err = tmpl.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
-		"Contacts":     data.Contacts,
-		"UserID":       user.UserID,
-		"Username":     user.UserName,
-		"Email":        user.Email,
-		"WebSocketURL": fmt.Sprintf("ws://%s", r.Host), // Use the host from the request
-
+		"Contacts":       data.Contacts,
+		"UserID":         user.UserID,
+		"Username":       user.UserName,
+		"Email":          user.Email,
+		"WebSocketURL":   fmt.Sprintf("ws://%s", r.Host), // Use the host from the request
+		"GatewayHttpURL": fmt.Sprintf("http://%s", r.Host),
 		// "WebSocketURL":   os.Getenv("GATEWAY_WS_URL"),
-		"GatewayHttpURL": os.Getenv("GATEWAY_URL"),
+		// "GatewayHttpURL": os.Getenv("GATEWAY_URL"),
 	})
 
 	if err != nil {
@@ -573,14 +573,15 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	// Pass contacts data to the template
 	tmpl := template.Must(template.ParseGlob("templates/*.html"))
 	err = tmpl.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
-		"Contacts":     data.Contacts,
-		"UserID":       userID,
-		"Username":     username,
-		"Email":        email,
-		"WebSocketURL": fmt.Sprintf("ws://%s", r.Host), // Use the host from the request
+		"Contacts":       data.Contacts,
+		"UserID":         userID,
+		"Username":       username,
+		"Email":          email,
+		"WebSocketURL":   fmt.Sprintf("ws://%s", r.Host), // Use the host from the request
+		"GatewayHttpURL": fmt.Sprintf("http://%s", r.Host),
 
 		// "WebSocketURL":   os.Getenv("GATEWAY_WS_URL"),
-		"GatewayHttpURL": os.Getenv("GATEWAY_URL"),
+		// "GatewayHttpURL": os.Getenv("GATEWAY_URL"),
 	})
 
 	if err != nil {
