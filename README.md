@@ -1,3 +1,5 @@
+# GO-CHAT: An SOA-based chat app built in Go lang
+
 **Instructions to compile and Run project**
 
 - Install latest version of docker desktop on your machine
