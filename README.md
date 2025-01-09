@@ -1,50 +1,41 @@
-# soa-go-chat
+# GO-CHAT: An SOA-based chat app built in Go lang
 
-# Problem Statement
-Modern distributed systems require efficient, reliable communication for real-time messaging and notifications. Challenges in distributed programming include ensuring message consistency, managing communication across services, enabling independent scaling, and minimizing latency in real-time scenarios. This project addresses these challenges to build a robust Chat app by leveraging distributed programming principles. 
+**Instructions to compile and Run project**
 
-# Proposed Solution:
-In this project, I particularly design and develop a full stack app with Service oriented architecture (SOA), where each service serves a different purpose and is decoupled from others. Each can be run separately, and one’s failure will not halt the complete system. The communication between services happens via AMQP using RabbitMQ broker. I use a SQLite database with a repository pattern. For real-time communication, I use Go’s web sockets, along with REST APIs for certain services.
+- Install latest version of docker desktop on your machine
+- Then extract the source_code folder (You will see 5 folders, 1 .yml file, 1 .json file and 1 .md within source_code folder) 
+- At that (root) level, run
 
-# Proposed Architecture: 
+```markdown
+docker-compose up --build
+```
 
-**Authentication Service:** 
-A distributed REST API ensuring secure login, registration, and JWT-based authentication, decoupled for independent scaling.
+- It may take a few mins to build and set UP containers for services. 
+- Once it is finished, you should see something like this
 
-**Messaging Service:** 
-Real-time WebSocket-based messaging backed by RabbitMQ for asynchronous queuing, ensuring reliable delivery across nodes.
+![alt text](image.png)
 
-**Notification Service:** 
-Handles real-time notifications using RabbitMQ for decoupled, scalable delivery to multiple clients.
+That means, the build was successful, all services are UP and running
 
-**API Gateway:** 
-Acts as the centralized entry point for routing client requests to backend services, simplifying communication in a distributed environment.
+You can now access the frontend site on
+http://localhost:8085/
 
-**Database: **
-SQLite with the repository pattern to manage user data, messages, and contact lists, ensuring abstraction and scalability.
 
-**Frontend: **
-Go html/templates
 
-# Features
-- Real-Time Messaging: One-to-one chat with WebSocket support, ensuring low-latency communication.
-- Contact Management: Handling of contact requests and approvals, along with contact search features.
-- File Transfer: Support for chunk-based file sending within chat
-- User Management:Login, registration, and logout functionalities
-- Chat UI: Server-rendered interface for real-time interactions.
+**Instructions to deploy the project**
 
-# Tech Stack
-**Backend:** Go programming language for efficient and scalable service development.
+The dockerized app can be hosted on github codespace, render, aws or anywhere with just few clicks.
+For exp: You can upload the source_code to your github (all folders in single repo), and then see this option and create codespace deployment. You will need to run this command on terminal of codespace at root level
 
-**Database:** SQLite with repository pattern for structured, abstracted data handling.
+```markdown
+docker-compose up --build
+```
 
-**Frontend Templates:** Go templates for dynamic, server-rendered UI.
+![alt text](image-1.png)
 
-**Message Broker:** RabbitMQ for asynchronous messaging and queue management.
+Alternatively, we can deploy on render.com each service separately and configure envs accordingly. As done here
 
-**Architecture:** Service-Oriented Architecture (SOA) for modular, distributed services.
+![alt text](image-2.png)
 
-**Protocols:** WebSockets for real-time communication and REST APIs for auxiliary service interactions.
 
-# Running the project
-CompileDaemon --build="sleep 1 && go build -o main" --command="./main"
+The project demo is already shown in Project Report.pdf
