@@ -14,26 +14,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-
-	"github.com/gorilla/websocket"
 )
-
-// Forward websocket request to gateway
-func proxyWebSocket(dst, src *websocket.Conn, errChan chan error) {
-	for {
-		messageType, message, err := src.ReadMessage()
-		if err != nil {
-			errChan <- err
-			return
-		}
-
-		err = dst.WriteMessage(messageType, message)
-		if err != nil {
-			errChan <- err
-			return
-		}
-	}
-}
 
 func main() {
 
